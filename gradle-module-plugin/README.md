@@ -35,7 +35,6 @@ plugins {
 2. Configure your module through the `ignitionModule` configuration DSL.  See DSL properties section below for details.
 
 3. Configure your signing settings, either in a gradle.properties file, or as commandline flags.  The required properties are defined in constants.kt, and used in the SignModule task.  You may mix and match flags and properties (and flags will override properties), as long as all required values are configured.  The only requirement is that option flags _must_ follow the gradle command to which they apply, which is the 'signModule' task in this case.   The flags/properties are as follows, with usage examples:
-   >Note: builds prior to v0.1.0-SNAPSHOT-6 used a separate property file called signing.properties.  Builds after that use gradle.properties files instead.
 
    | Flag  | Usage  | gradle.properties entry |
    |-------|--------|-------------------------|

@@ -8,7 +8,7 @@ import io.ia.sdk.gradle.modl.api.Constants.CERT_FILE_FLAG
 import io.ia.sdk.gradle.modl.api.Constants.CERT_PW_FLAG
 import io.ia.sdk.gradle.modl.api.Constants.KEYSTORE_FILE_FLAG
 import io.ia.sdk.gradle.modl.api.Constants.KEYSTORE_PW_FLAG
-import io.ia.sdk.gradle.modl.util.nameToDirName
+import io.ia.sdk.gradle.modl.api.Constants.PKCS11_CFG_FLAG
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.junit.Rule
@@ -18,8 +18,9 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 data class SigningResources(
-    val keystore: Path,
-    val certFile: Path,
+    val keystore: Path?,
+    val certFile: Path?,
+    val pkcs11Cfg: Path?,
     val signPropFile: Path?
 )
 
@@ -29,13 +30,17 @@ open class BaseTest {
         val DESIGNER_DEP = "// add designer scoped dependencies here"
         val GW_DEP = "// add gateway scoped dependencies here"
         val COMMON_DEP = "// add common scoped dependencies here"
-        val SIGN_PROPS = "signing.properties"
         val SIGNING_PROPERTY_ENTRIES = """
             ${Constants.SIGNING_PROPERTIES[ALIAS_FLAG]}=selfsigned
-            ${Constants.SIGNING_PROPERTIES[KEYSTORE_FILE_FLAG]}=./keystore.jks
             ${Constants.SIGNING_PROPERTIES[KEYSTORE_PW_FLAG]}=password
             ${Constants.SIGNING_PROPERTIES[CERT_FILE_FLAG]}=./certificate.pem
             ${Constants.SIGNING_PROPERTIES[CERT_PW_FLAG]}=password
+        """.trimIndent()
+        val KEYSTORE_PROPERTY_ENTRIES = """
+            ${Constants.SIGNING_PROPERTIES[KEYSTORE_FILE_FLAG]}=./keystore.jks
+        """.trimIndent()
+        val PKCS11_PROPERTY_ENTRIES = """
+            ${Constants.SIGNING_PROPERTIES[PKCS11_CFG_FLAG]}=./pkcs11.cfg
         """.trimIndent()
     }
 
@@ -50,25 +55,36 @@ open class BaseTest {
         return name
     }
 
-    protected fun prepSigningResourcesForModuleName(
-        parentDirectory: Path,
-        moduleName: String,
-        withPropFile: Boolean = true
-    ): SigningResources {
-        val projectDir = nameToDirName(moduleName)
-        return prepareSigningTestResources(parentDirectory.resolve(projectDir), withPropFile)
-    }
-
     // writes a gradle.properties file containing the signing credentials needed for signing a module using test
     // resources
-    protected fun writeSigningCredentials(targetDirectory: Path): Path {
+    protected fun writeSigningCredentials(
+        targetDirectory: Path,
+        keystoreProps: String
+    ): Path {
         val gradleProps: Path = targetDirectory.resolve("gradle.properties")
+        gradleProps.toFile().let { propsFl ->
+            StringBuilder().let { props ->
 
-        if (Files.exists(gradleProps)) {
-            val content = gradleProps.toFile().readText(Charsets.UTF_8)
-            gradleProps.toFile().writeText(content + "\n" + SIGNING_PROPERTY_ENTRIES)
-        } else {
-            gradleProps.toFile().writeText(SIGNING_PROPERTY_ENTRIES, Charsets.UTF_8)
+                // add a trailing EOL if necessary, then common props
+                if (
+                    propsFl.exists() &&
+                        !propsFl.readText().matches(Regex("""\R$"""))
+                ) {
+                    // FIXME zap after regression test troubleshoot
+                    println("[$propsFl] Lacks EOF EOL, adding one now ;-)")
+                    props.append("\n")
+                }
+                props.append(SIGNING_PROPERTY_ENTRIES)
+                props.append("\n")
+
+                // this could be file-based or PKCS#11 HSM-based keystore props
+                props.append(keystoreProps)
+
+                // FIXME zap after regression test troubleshoot
+                println("props:\n${props.toString()}")
+
+                propsFl.appendText(props.toString())
+            }
         }
 
         return gradleProps
@@ -78,27 +94,64 @@ open class BaseTest {
         return moduleName.replace(" ", "-").lowercase()
     }
 
-    // returns the path to the 'signing.properties' file
+    // file-based keystore
+    // returns the path to the 'gradle.properties' file
     protected fun prepareSigningTestResources(targetDirectory: Path, withPropFile: Boolean = true): SigningResources {
-        Files.createDirectories(targetDirectory)
+        val paths = writeResourceFiles(
+            targetDirectory,
+            listOf("certificate.pem", "keystore.jks")
+        )
 
-        val paths: List<Path?> = listOf("certificate.pem", "keystore.jks").map { resourcePath ->
-            ClassLoader.getSystemResourceAsStream("certs/$resourcePath").let { inputStream ->
+        val propFile =
+            if (withPropFile)
+                writeSigningCredentials(targetDirectory, KEYSTORE_PROPERTY_ENTRIES)
+            else null
+        return SigningResources(
+            certFile = paths[0] as Path,
+            keystore = paths[1] as Path,
+            pkcs11Cfg = null,
+            signPropFile = propFile,
+        )
+    }
+
+    // PKCS#11 HSM-based keystore
+    // returns the path to the 'gradle.properties' file
+    protected fun preparePKCS11SigningTestResources(
+        targetDirectory: Path,
+        withPropFile: Boolean = true
+    ): SigningResources {
+        val paths = writeResourceFiles(
+            targetDirectory,
+            // future feature: cert also on the HSM
+            listOf("certificate.pem", "pkcs11.cfg")
+        )
+
+        val propFile =
+            if (withPropFile)
+                writeSigningCredentials(targetDirectory, PKCS11_PROPERTY_ENTRIES)
+            else null
+        return SigningResources(
+            certFile = paths[0] as Path,
+            keystore = null,
+            pkcs11Cfg = paths[1] as Path,
+            signPropFile = propFile,
+        )
+    }
+
+    private fun writeResourceFiles(targetDir: Path, resources: List<String>): List<Path?> {
+        Files.createDirectories(targetDir)
+
+        return resources.map { resource ->
+            ClassLoader.getSystemResourceAsStream("certs/$resource").let { inputStream ->
                 if (inputStream == null) {
-                    throw Exception("Failed to read test resource 'certs/$resourcePath")
+                    throw Exception("Failed to read test resource 'certs/$resource")
                 }
-                val writeTo = targetDirectory.resolve(resourcePath)
+                val writeTo = targetDir.resolve(resource)
                 inputStream.copyTo(writeTo.toFile().outputStream(), 1024)
 
                 writeTo
             }
         }
-
-        return SigningResources(
-            certFile = paths[0] as Path,
-            keystore = paths[1] as Path,
-            signPropFile = if (withPropFile) writeSigningCredentials(targetDirectory) else null
-        )
     }
 
     open fun config(name: String, scope: String, pkg: String): GeneratorConfig {

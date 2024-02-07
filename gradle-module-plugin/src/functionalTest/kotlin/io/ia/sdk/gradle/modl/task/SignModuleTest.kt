@@ -239,4 +239,37 @@ class SignModuleTest : BaseTest() {
         assertNotNull(ex.message, "Exception should have message")
         assertTrue(ex.message.toString().contains(expectedError), "expected error detected.")
     }
+
+    @Test
+    // @Tag("IGN-7871")
+    fun `module failed - keystore and pkcs11 in gradle properties`() {
+        // FIXME add coverage
+    }
+/*
+    @Test
+    // @Tag("IGN-7871")
+    fun `module failed - keystore in gradle properties, pkcs11 on cmdline`() {
+        // FIXME add coverage
+    }
+
+    @Test
+    // @Tag("IGN-7871")
+    fun `module failed - keystore on cmdline, pkcs11 in gradle properties`() {
+        // FIXME add coverage
+    }
+
+    @Test
+    // @Tag("IGN-7871")
+    fun `module signed with pkcs11 in gradle properties`() {
+        // FIXME mock the hw key?
+        // FIXME write an integration test w/ actual hw key?
+    }
+
+    @Test
+    // @Tag("IGN-7871")
+    fun `module signed with pkcs11 on cmdline`() {
+        // FIXME mock the hw key?
+        // FIXME write an integration test w/ actual hw key?
+    }
+*/
 }

@@ -70,7 +70,7 @@ open class BaseTest {
                     propsFl.exists() &&
                         !propsFl.readText().matches(Regex("""\R$"""))
                 ) {
-                    // FIXME zap after regression test troubleshoot
+                    // FIXME zap after testing done
                     println("[$propsFl] Lacks EOF EOL, adding one now ;-)")
                     props.append("\n")
                 }
@@ -80,7 +80,7 @@ open class BaseTest {
                 // this could be file-based or PKCS#11 HSM-based keystore props
                 props.append(keystoreProps)
 
-                // FIXME zap after regression test troubleshoot
+                // FIXME zap after testing done
                 println("props:\n${props.toString()}")
 
                 propsFl.appendText(props.toString())
@@ -95,7 +95,6 @@ open class BaseTest {
     }
 
     // file-based keystore
-    // returns the path to the 'gradle.properties' file
     protected fun prepareSigningTestResources(targetDirectory: Path, withPropFile: Boolean = true): SigningResources {
         val paths = writeResourceFiles(
             targetDirectory,
@@ -115,14 +114,12 @@ open class BaseTest {
     }
 
     // PKCS#11 HSM-based keystore
-    // returns the path to the 'gradle.properties' file
     protected fun preparePKCS11SigningTestResources(
         targetDirectory: Path,
         withPropFile: Boolean = true
     ): SigningResources {
         val paths = writeResourceFiles(
             targetDirectory,
-            // future feature: cert also on the HSM
             listOf("certificate.pem", "pkcs11.cfg")
         )
 
@@ -138,7 +135,7 @@ open class BaseTest {
         )
     }
 
-    private fun writeResourceFiles(targetDir: Path, resources: List<String>): List<Path?> {
+    protected fun writeResourceFiles(targetDir: Path, resources: List<String>): List<Path?> {
         Files.createDirectories(targetDir)
 
         return resources.map { resource ->
@@ -169,16 +166,24 @@ open class BaseTest {
             .build()
     }
 
-    open fun runTask(projectDir: File, taskArgs: List<String>): BuildResult {
-        val runner = GradleRunner.create()
-        runner.forwardOutput()
-        runner.withPluginClasspath()
-        runner.withArguments(taskArgs)
-        runner.withProjectDir(projectDir)
-        return runner.build()
-    }
+    open fun runTask(projectDir: File, taskArgs: List<String>): BuildResult =
+        setupRunner(projectDir, taskArgs).build()
 
-    open fun runTask(projectDir: File, task: String): BuildResult {
-        return runTask(projectDir, listOf(task))
-    }
+    open fun runTask(projectDir: File, task: String): BuildResult =
+        setupRunner(projectDir, listOf(task)).build()
+
+    open fun runTaskAndFail(
+        projectDir: File,
+        taskArgs: List<String>
+    ): BuildResult = setupRunner(projectDir, taskArgs).buildAndFail()
+
+    private fun setupRunner(
+        projectDir: File,
+        taskArgs: List<String>
+    ): GradleRunner = 
+        GradleRunner.create()
+            .forwardOutput()
+            .withPluginClasspath()
+            .withArguments(taskArgs)
+            .withProjectDir(projectDir)
 }

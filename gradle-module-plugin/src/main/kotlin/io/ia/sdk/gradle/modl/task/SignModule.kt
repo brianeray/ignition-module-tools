@@ -8,7 +8,10 @@ import io.ia.sdk.gradle.modl.api.Constants.CERT_FILE_FLAG
 import io.ia.sdk.gradle.modl.api.Constants.CERT_PW_FLAG
 import io.ia.sdk.gradle.modl.api.Constants.KEYSTORE_FILE_FLAG
 import io.ia.sdk.gradle.modl.api.Constants.KEYSTORE_PW_FLAG
+import io.ia.sdk.gradle.modl.api.Constants.PKCS11_CFG_FLAG
+import io.ia.sdk.gradle.modl.api.Constants.SIGNING_PROPERTIES
 import org.gradle.api.DefaultTask
+import org.gradle.api.InvalidUserDataException
 import org.gradle.api.file.RegularFile
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.model.ObjectFactory
@@ -76,6 +79,30 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
         keystorePath.set(path)
     }
 
+    @get:Input
+    @get:Optional
+    val pkcs11CfgPath: Property<String> =
+        _objects.property(String::class.java).convention(
+            _providers.provider {
+                if (skipSigning.get()) SKIP
+                // FIXME rivalrous w/ keystore opts/props so can't require it?
+                else propOrLogError(
+                    PKCS11_CFG_FLAG,
+                    "PKCS#11 HSM config file location"
+                )
+            }
+        )
+
+    @Option(
+        option = PKCS11_CFG_FLAG,
+        description =
+            "Path PKCS#11 HSM config file used for signing. " +
+                "Resolves in the same manner as gradle's project.file('<path>')"
+    )
+    fun setPKCS11Path(path: String) {
+        pkcs11CfgPath.set(path)
+    }
+
     /**
      * If set to true, resolving relative path signing asset files will first check for relative to the module
      * root (where the module plugin is declared), and if not found, will also try to resolve relative to the
@@ -95,6 +122,20 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
         }
         target
     }
+
+    @get:InputFile
+    val pkcs11Cfg: Provider<File> =
+        pkcs11CfgPath.zip(allowMultiprojectFileResolution) { path, allow ->
+            var target = project.file(path)
+            if (!target.exists() && allow && project != project.rootProject) {
+                logger.info(
+                    "Failed to resolve PKCS#11 config file at $target, " +
+                        "attempting root project resolution."
+                )
+                target = project.rootProject.file(path)
+            }
+            target
+        }
 
     @get:Input
     val keystorePw: Property<String> = _objects.property(String::class.java).convention(
@@ -206,6 +247,16 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
             throw Exception("Signing failed, module file '${unsignedModule.absolutePath}' not found.")
         } else {
             logger.debug("Found unsigned module at ${unsignedModule.absolutePath}...")
+        }
+
+        if (keystorePath.isPresent && pkcs11CfgPath.isPresent) {
+            throw InvalidUserDataException(
+                "Signing failed, specify '--$KEYSTORE_FILE_FLAG' flag/" +
+                    "'${SIGNING_PROPERTIES[KEYSTORE_FILE_FLAG]}' property in " +
+                    "gradle.properties or '--$PKCS11_CFG_FLAG' flag/" +
+                    "'${SIGNING_PROPERTIES[PKCS11_CFG_FLAG]}' property in " +
+                    "gradle.properties but not both."
+            )
         }
 
         logger.debug("Signed module will be named ${signed.get().asFile.absolutePath}")

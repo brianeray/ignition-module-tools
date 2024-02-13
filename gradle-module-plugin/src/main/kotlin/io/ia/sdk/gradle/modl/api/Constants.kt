@@ -74,7 +74,7 @@ object Constants {
 
     /**
      * The keystore file to be used for signing the module. Not compatible
-     * with [PKCS11_CFG_FLAG].
+     * with [PKCS11_CFG_FILE_FLAG].
      */
     const val KEYSTORE_FILE_FLAG: String = "keystoreFile"
 
@@ -87,7 +87,7 @@ object Constants {
      * PKCS#11 config file, typically used for hardware token keystores and
      * other HSMs. Not compatible with [KEYSTORE_FILE_FLAG].
      */
-    const val PKCS11_CFG_FLAG: String = "pkcs11Cfg"
+    const val PKCS11_CFG_FILE_FLAG: String = "pkcs11CfgFile"
 
     /**
      * Map of CLI option flag `gradle <taskname> --taskProperty=value` to namespaced gradle property equivalent.
@@ -104,6 +104,6 @@ object Constants {
         CERT_PW_FLAG to "$PROPERTY_NAMESPACE.$CERT_PW_FLAG",
         KEYSTORE_FILE_FLAG to "$PROPERTY_NAMESPACE.$KEYSTORE_FILE_FLAG",
         KEYSTORE_PW_FLAG to "$PROPERTY_NAMESPACE.$KEYSTORE_PW_FLAG",
-        PKCS11_CFG_FLAG to "$PROPERTY_NAMESPACE.$PKCS11_CFG_FLAG",
+        PKCS11_CFG_FILE_FLAG to "$PROPERTY_NAMESPACE.$PKCS11_CFG_FILE_FLAG",
     )
 }

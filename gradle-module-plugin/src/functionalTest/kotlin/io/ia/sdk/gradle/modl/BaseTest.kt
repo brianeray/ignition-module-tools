@@ -34,7 +34,7 @@ open class BaseTest {
             ignition.signing.keystoreFile=./keystore.jks
         """.trimIndent()
         val PKCS11_PROPERTY_ENTRIES = """
-            ignition.signing.pkcs11Cfg=./pkcs11.cfg
+            ignition.signing.pkcs11CfgFile=./pkcs11.cfg
         """.trimIndent()
     }
 

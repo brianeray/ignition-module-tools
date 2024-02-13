@@ -27,7 +27,7 @@ class SignModuleTest : BaseTest() {
             ignition.signing.keystorePassword=123456
             ignition.signing.certFile=./certificate.pem
             ignition.signing.certPassword=password
-            ignition.signing.pkcs11Cfg=./pkcs11-yk5-win.cfg
+            ignition.signing.pkcs11CfgFile=./pkcs11-yk5-win.cfg
         """.trimIndent()
     }
 
@@ -56,7 +56,9 @@ class SignModuleTest : BaseTest() {
 
         val projectDir = ModuleGenerator.generate(config)
 
-        val result = runTask(projectDir.toFile(), "signModule", "--stacktrace")
+        val result = runTask(
+            projectDir.toFile(), listOf("signModule", "--stacktrace")
+        )
 
         val buildDir = projectDir.resolve("build")
         val signedFileName = signedModuleName(moduleName)
@@ -147,12 +149,30 @@ class SignModuleTest : BaseTest() {
             msg = e.message.toString()
         }
 
-        val expected = "Some problems were found with the configuration of task ':signModule' (type 'SignModule')."
-
         val output: String? = result?.output
         assertNull(output, "Should have received output from build attempt")
         assertNotNull(msg, "should have exception message")
-        assertTrue(msg.contains(expected), "Execution failed due to missing sign props")
+
+        assertContains(msg, "Required certificate file location not found")
+        assertContains(msg, "Specify via flag '--certFile=<value>'")
+        assertContains(
+            msg,
+            "file as 'ignition.signing.certFile=<value>"
+        )
+
+        assertContains(msg, "Required certificate password not found")
+        assertContains(msg, "Specify via flag '--certPassword=<value>'")
+        assertContains(
+            msg,
+            "file as 'ignition.signing.certPassword=<value>"
+        )
+
+        assertContains(msg, "Required keystore password not found")
+        assertContains(msg, "Specify via flag '--keystorePassword=<value>'")
+        assertContains(
+            msg,
+            "file as 'ignition.signing.keystorePassword=<value>"
+        )
     }
 
     @Test
@@ -184,7 +204,8 @@ class SignModuleTest : BaseTest() {
             "--keystoreFile=${signResources.keystore}",
             "--certFile=${signResources.certFile}",
             "--certAlias=selfsigned",
-            "--certPassword=password"
+            "--certPassword=password",
+            "--stacktrace",
         )
         var result: BuildResult? = null
         var ex: Exception? = null
@@ -201,7 +222,7 @@ class SignModuleTest : BaseTest() {
         assertNull(result, "build output will be null due to failure")
         assertNotNull(ex, "Exception should be caught and not null")
         assertNotNull(ex.message, "Exception should have message")
-        assertTrue(ex.message.toString().contains(expectedError), "expected error detected.")
+        assertContains(ex.message!!, expectedError)
     }
 
     @Test
@@ -233,7 +254,8 @@ class SignModuleTest : BaseTest() {
             "--keystoreFile=${signResources.keystore}",
             "--certFile=${signResources.certFile}",
             "--certAlias=selfsigned",
-            "--certPassword=password"
+            "--keystorePassword=password",
+            "--stacktrace",
         )
         var result: BuildResult? = null
         var ex: Exception? = null
@@ -244,13 +266,13 @@ class SignModuleTest : BaseTest() {
         }
 
         val expectedError = Regex(
-            """> Task :signModule FAILED\RRequired keystore password not found.  Specify via flag """ +
-                "'--keystorePassword=<value>', or in gradle.properties file as 'ignition.signing.keystorePassword=<value>'"
+            """> Task :signModule FAILED\RRequired certificate password not found.  Specify via flag """ +
+                "'--certPassword=<value>', or in gradle.properties file as 'ignition.signing.certPassword=<value>'"
         )
         assertNull(result, "build output will be null due to failure")
         assertNotNull(ex, "Exception should be caught and not null")
         assertNotNull(ex.message, "Exception should have message")
-        assertTrue(ex.message.toString().contains(expectedError), "expected error detected.")
+        assertContains(ex.message!!, expectedError)
     }
 
     @Test
@@ -302,7 +324,7 @@ class SignModuleTest : BaseTest() {
             result.output,
             "'--keystoreFile' flag/'ignition.signing.keystoreFile' property " +
                 "in gradle.properties or " +
-                "'--pkcs11Cfg' flag/'ignition.signing.pkcs11Cfg' property " +
+                "'--pkcs11CfgFile' flag/'ignition.signing.pkcs11CfgFile' property " +
                 "in gradle.properties but not both"
         )
         assertContains(result.output, "InvalidUserDataException")
@@ -346,7 +368,7 @@ class SignModuleTest : BaseTest() {
         // keystore, which conflicts with the file-based keystore.
         val taskArgs = listOf(
             "signModule",
-            "--pkcs11Cfg=$pkcs11CfgPath",
+            "--pkcs11CfgFile=$pkcs11CfgPath",
             "--stacktrace",
         )
         val result: BuildResult =
@@ -358,7 +380,7 @@ class SignModuleTest : BaseTest() {
             result.output,
             "'--keystoreFile' flag/'ignition.signing.keystoreFile' property " +
                 "in gradle.properties or " +
-                "'--pkcs11Cfg' flag/'ignition.signing.pkcs11Cfg' property " +
+                "'--pkcs11CfgFile' flag/'ignition.signing.pkcs11CfgFile' property " +
                 "in gradle.properties but not both"
         )
         assertContains(result.output, "InvalidUserDataException")
@@ -414,7 +436,7 @@ class SignModuleTest : BaseTest() {
             result.output,
             "'--keystoreFile' flag/'ignition.signing.keystoreFile' property " +
                 "in gradle.properties or " +
-                "'--pkcs11Cfg' flag/'ignition.signing.pkcs11Cfg' property " +
+                "'--pkcs11CfgFile' flag/'ignition.signing.pkcs11CfgFile' property " +
                 "in gradle.properties but not both"
         )
         assertContains(result.output, "InvalidUserDataException")
@@ -458,7 +480,7 @@ class SignModuleTest : BaseTest() {
         val taskArgs = listOf(
             "signModule",
             "--keystoreFile=$ksPath",
-            "--pkcs11Cfg=$pkcs11Cfg",
+            "--pkcs11CfgFile=$pkcs11Cfg",
             "--keystorePassword=password",
             "--certAlias=selfsigned",
             "--certFile=./certificate.pem",
@@ -474,7 +496,7 @@ class SignModuleTest : BaseTest() {
             result.output,
             "'--keystoreFile' flag/'ignition.signing.keystoreFile' property " +
                 "in gradle.properties or " +
-                "'--pkcs11Cfg' flag/'ignition.signing.pkcs11Cfg' property " +
+                "'--pkcs11CfgFile' flag/'ignition.signing.pkcs11CfgFile' property " +
                 "in gradle.properties but not both"
         )
         assertContains(result.output, "InvalidUserDataException")
@@ -484,14 +506,12 @@ class SignModuleTest : BaseTest() {
     //@Tag("IGN-7871")
     fun `module signed with pkcs11 keystore in gradle properties`() {
         // FIXME mock the hw key?
-        // FIXME write an integration test w/ actual hw key?
     }
 
     @Test
     //@Tag("IGN-7871")
     fun `module signed with pkcs11 keystore on cmdline`() {
         // FIXME mock the hw key?
-        // FIXME write an integration test w/ actual hw key?
     }
 */
     // This is a test with an actual PKCS#11-compliant YubiKey 5, on Windows.
@@ -567,4 +587,5 @@ class SignModuleTest : BaseTest() {
  */
 
     // FIXME refactor the repetitive project build LOCs
+    // FIXME can the temp dir fixture be nuked after each test?
 }

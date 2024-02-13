@@ -8,7 +8,7 @@ import io.ia.sdk.gradle.modl.api.Constants.CERT_FILE_FLAG
 import io.ia.sdk.gradle.modl.api.Constants.CERT_PW_FLAG
 import io.ia.sdk.gradle.modl.api.Constants.KEYSTORE_FILE_FLAG
 import io.ia.sdk.gradle.modl.api.Constants.KEYSTORE_PW_FLAG
-import io.ia.sdk.gradle.modl.api.Constants.PKCS11_CFG_FLAG
+import io.ia.sdk.gradle.modl.api.Constants.PKCS11_CFG_FILE_FLAG
 import io.ia.sdk.gradle.modl.api.Constants.SIGNING_PROPERTIES
 import org.gradle.api.DefaultTask
 import org.gradle.api.InvalidUserDataException
@@ -67,10 +67,11 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
     val keystorePath: Property<String> =
         _objects.property(String::class.java).convention(
             _providers.provider {
+                val propKey =
+                    Constants.SIGNING_PROPERTIES[KEYSTORE_FILE_FLAG] as String
+
                 if (skipSigning.get()) SKIP
-                // FIXME rivalrous w/ keystorePath so can't require it?
-                else propFromProjectProps(KEYSTORE_FILE_FLAG, "keystore file location")
-                )
+                else propFromProjectProps(propKey) // can be null
             }
         )
 
@@ -88,14 +89,16 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
     val pkcs11CfgPath: Property<String> =
         _objects.property(String::class.java).convention(
             _providers.provider {
+                val propKey =
+                    Constants.SIGNING_PROPERTIES[PKCS11_CFG_FILE_FLAG] as String
+
                 if (skipSigning.get()) SKIP
-                // FIXME rivalrous w/ keystorePath so can't require it?
-                else propFromProjectProps(PKCS11_CFG_FLAG,"PKCS#11 HSM config file location")
+                else propFromProjectProps(propKey) // can be null
             }
         )
 
     @Option(
-        option = PKCS11_CFG_FLAG,
+        option = PKCS11_CFG_FILE_FLAG,
         description =
             "Path PKCS#11 HSM config file used for signing. " +
                 "Resolves in the same manner as gradle's project.file('<path>')"
@@ -115,6 +118,7 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
     val allowMultiprojectFileResolution: Property<Boolean> = _objects.property(Boolean::class.java).convention(true)
 
     @get:InputFile
+    @get:Optional
     val keystore: Provider<File> = keystorePath.zip(allowMultiprojectFileResolution) { path, allow ->
         var target = project.file(path)
         if (!target.exists() && allow && project != project.rootProject) {
@@ -125,6 +129,7 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
     }
 
     @get:InputFile
+    @get:Optional
     val pkcs11Cfg: Provider<File> =
         pkcs11CfgPath.zip(allowMultiprojectFileResolution) { path, allow ->
             var target = project.file(path)
@@ -201,7 +206,6 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
         }
     )
 
-    // FIXME allow rival props check
     @Suppress("MemberVisibilityCanBePrivate")
     protected fun propOrLogError(flag: String, itemName: String): String {
         val propKey = Constants.SIGNING_PROPERTIES[flag] as String
@@ -254,13 +258,36 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
             logger.debug("Found unsigned module at ${unsignedModule.absolutePath}...")
         }
 
-        if (keystorePath.isPresent && pkcs11CfgPath.isPresent) {
+        // If both file- and PKCS#11-based keystores are specified, fail.
+        // Mechanically that means these properties are both 1) set, 2) set
+        // to something other than the SKIP value, and 3) not explicitly set
+        // to null via property convention backstop logic.
+        if (
+            listOf(keystorePath, pkcs11CfgPath).all { p ->
+                listOf(SKIP, null).none { v -> p.getOrNull() == v }
+            }
+        ) {
             throw InvalidUserDataException(
                 "Signing failed, specify '--$KEYSTORE_FILE_FLAG' flag/" +
                     "'${SIGNING_PROPERTIES[KEYSTORE_FILE_FLAG]}' property in " +
-                    "gradle.properties or '--$PKCS11_CFG_FLAG' flag/" +
-                    "'${SIGNING_PROPERTIES[PKCS11_CFG_FLAG]}' property in " +
+                    "gradle.properties or '--$PKCS11_CFG_FILE_FLAG' flag/" +
+                    "'${SIGNING_PROPERTIES[PKCS11_CFG_FILE_FLAG]}' property in " +
                     "gradle.properties but not both."
+            )
+        }
+
+        // Converseley if neither flavor of keystore is specified, also fail.
+        if (
+            listOf(keystorePath, pkcs11CfgPath).all { p ->
+                p.getOrNull() == null
+            }
+        ) {
+            throw InvalidUserDataException(
+                "Signing failed, specify '--$KEYSTORE_FILE_FLAG' flag/" +
+                    "'${SIGNING_PROPERTIES[KEYSTORE_FILE_FLAG]}' property in " +
+                    "gradle.properties or '--$PKCS11_CFG_FILE_FLAG' flag/" +
+                    "'${SIGNING_PROPERTIES[PKCS11_CFG_FILE_FLAG]}' property in " +
+                    "gradle.properties."
             )
         }
 

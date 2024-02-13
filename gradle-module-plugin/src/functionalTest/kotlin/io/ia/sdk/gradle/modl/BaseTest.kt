@@ -53,7 +53,8 @@ open class BaseTest {
     // resources
     protected fun writeSigningCredentials(
         targetDirectory: Path,
-        keystoreProps: String
+        keystoreProps: String,
+        writeBoilerplateProps: Boolean = true
     ): Path {
         val gradleProps: Path = targetDirectory.resolve("gradle.properties")
         gradleProps.toFile().let { propsFl ->
@@ -68,8 +69,9 @@ open class BaseTest {
                     println("[$propsFl] Lacks EOF EOL, adding one now ;-)")
                     props.append("\n")
                 }
-                props.append(SIGNING_PROPERTY_ENTRIES)
-                props.append("\n")
+                if (writeBoilerplateProps) {
+                    props.append("$SIGNING_PROPERTY_ENTRIES\n")
+                }
 
                 // this could be file-based or PKCS#11 HSM-based keystore props
                 props.append(keystoreProps)

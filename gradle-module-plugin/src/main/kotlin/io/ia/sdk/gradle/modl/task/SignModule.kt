@@ -30,7 +30,7 @@ import java.io.IOException
 import java.io.OutputStream
 import java.io.PrintStream
 import java.security.KeyStore
-import java.security.interfaces.RSAPrivateKey
+import java.security.PrivateKey
 import javax.inject.Inject
 
 /**
@@ -229,7 +229,9 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
 
     @Internal
     fun getKeyStore(): KeyStore {
-        project.logger.debug("Resolving keystore file...")
+        project.logger.debug("Resolving keystore...")
+
+        // File-base keystore
         if (keystore.isPresent) {
             val keystoreFile = keystore.get()
             if (keystoreFile.exists()) {
@@ -244,6 +246,10 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
                 throw Exception("Signing key file ${keystoreFile.absolutePath} did not exist!")
             }
         }
+
+        // PKCS#11 HSM (hardware key)-based keystore
+        // FIXME this is first place we need to splice in PKCS#11/file-based split
+
         throw Exception("Failed to resolve keystore!")
     }
 
@@ -294,7 +300,8 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
         logger.debug("Signed module will be named ${signed.get().asFile.absolutePath}")
 
         signModule(
-            keystore.get(),
+            keystore.getOrNull(),
+            pkcs11Cfg.getOrNull(),
             keystorePw.get(),
             certFile.get(),
             certPw.get(),
@@ -311,16 +318,18 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
     @Suppress("MemberVisibilityCanBePrivate")
     @Throws(IOException::class)
     protected fun signModule(
-        keyStoreFile: File,
+        keyStoreFile: File?,
+        pkcs11CfgFile: File?,
         keystorePassword: String,
         cert: File,
         certPassword: String,
         certAlias: String,
         unsignedModule: File,
-        outFile: File
+        outFile: File,
     ) {
         logger.debug(
-            "Signing module with keystoreFile: ${keyStoreFile.absolutePath}, " +
+            "Signing module with keystoreFile: ${keyStoreFile?.absolutePath}, " +
+                "pkcs11CfgFile: ${pkcs11CfgFile?.absolutePath}, " +
                 "keystorePassword: ${"*".repeat(keystorePassword.length)}, " +
                 "cert: ${cert.absolutePath}, " +
                 "certPw: ${"*".repeat(certPassword.length)}, " +
@@ -328,9 +337,9 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
         )
 
         val keyStore: KeyStore = getKeyStore()
-        keyStore.load(keyStoreFile.inputStream(), keystorePassword.toCharArray())
+        keyStore.load(keyStoreFile?.inputStream(), keystorePassword.toCharArray())
 
-        val privateKey: RSAPrivateKey = keyStore.getKey(certAlias, certPassword.toCharArray()) as RSAPrivateKey
+        val privateKey: PrivateKey = keyStore.getKey(certAlias, certPassword.toCharArray()) as PrivateKey
 
         ModuleSigner(privateKey, cert.inputStream())
             .signModule(PrintStream(OutputStream.nullOutputStream()), unsignedModule, outFile)

@@ -385,7 +385,7 @@ class SignModuleTest : BaseTest() {
     // This is a test with an actual PKCS#11-compliant YubiKey 5, on Windows.
     // As such it is typically set to @Ignore.
     @Test
-    @Ignore
+    //@Ignore
     //@Tag("integration")
     //@Tag("IGN-7871")
     fun `module signed with physical pkcs11 HSM in gradle properties`() {
@@ -403,11 +403,15 @@ class SignModuleTest : BaseTest() {
             listOf("certificate.pem", "pkcs11-yk5-win.cfg")
         )
         writeSigningCredentials(
-            signingResourcesDestination,
-            PKCS11_HSM_SIGNING_PROPERTY_ENTRIES
+            targetDirectory = signingResourcesDestination,
+            keystoreProps = PKCS11_HSM_SIGNING_PROPERTY_ENTRIES,
+            writeBoilerplateProps = false,
         )
 
-        val result: BuildResult = runTask(projectDir.toFile(), "signModule")
+        val result: BuildResult = runTask(
+            projectDir.toFile(),
+            listOf("signModule", "--stacktrace")
+        )
 
         val task = result.task(":signModule")
         assertEquals(task?.outcome, TaskOutcome.SUCCESS)
@@ -423,7 +427,7 @@ class SignModuleTest : BaseTest() {
 
         assertTrue(signed.exists(), "signed file exists")
         assertNotNull(file, "signatures.properties found in signed modl")
-        // FIXME write an integration test w/ actual hw key?
+        // FIXME HERE write an integration test w/ actual hw key?
     }
 
     /*

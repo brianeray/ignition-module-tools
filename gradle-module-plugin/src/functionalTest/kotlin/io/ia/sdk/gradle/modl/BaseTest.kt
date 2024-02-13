@@ -3,12 +3,6 @@ package io.ia.sdk.gradle.modl
 import io.ia.ignition.module.generator.api.GeneratorConfig
 import io.ia.ignition.module.generator.api.GeneratorConfigBuilder
 import io.ia.sdk.gradle.modl.api.Constants
-import io.ia.sdk.gradle.modl.api.Constants.ALIAS_FLAG
-import io.ia.sdk.gradle.modl.api.Constants.CERT_FILE_FLAG
-import io.ia.sdk.gradle.modl.api.Constants.CERT_PW_FLAG
-import io.ia.sdk.gradle.modl.api.Constants.KEYSTORE_FILE_FLAG
-import io.ia.sdk.gradle.modl.api.Constants.KEYSTORE_PW_FLAG
-import io.ia.sdk.gradle.modl.api.Constants.PKCS11_CFG_FLAG
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.junit.Rule
@@ -26,21 +20,21 @@ data class SigningResources(
 
 open class BaseTest {
     companion object {
-        val CLIENT_DEP = "// add client scoped dependencies here"
-        val DESIGNER_DEP = "// add designer scoped dependencies here"
-        val GW_DEP = "// add gateway scoped dependencies here"
-        val COMMON_DEP = "// add common scoped dependencies here"
+        const val CLIENT_DEP = "// add client scoped dependencies here"
+        const val DESIGNER_DEP = "// add designer scoped dependencies here"
+        const val GW_DEP = "// add gateway scoped dependencies here"
+        const val COMMON_DEP = "// add common scoped dependencies here"
         val SIGNING_PROPERTY_ENTRIES = """
-            ${Constants.SIGNING_PROPERTIES[ALIAS_FLAG]}=selfsigned
-            ${Constants.SIGNING_PROPERTIES[KEYSTORE_PW_FLAG]}=password
-            ${Constants.SIGNING_PROPERTIES[CERT_FILE_FLAG]}=./certificate.pem
-            ${Constants.SIGNING_PROPERTIES[CERT_PW_FLAG]}=password
+            ignition.signing.certAlias=selfsigned
+            ignition.signing.keystorePassword=password
+            ignition.signing.certFile=./certificate.pem
+            ignition.signing.certPassword=password
         """.trimIndent()
         val KEYSTORE_PROPERTY_ENTRIES = """
-            ${Constants.SIGNING_PROPERTIES[KEYSTORE_FILE_FLAG]}=./keystore.jks
+            ignition.signing.keystoreFile=./keystore.jks
         """.trimIndent()
         val PKCS11_PROPERTY_ENTRIES = """
-            ${Constants.SIGNING_PROPERTIES[PKCS11_CFG_FLAG]}=./pkcs11.cfg
+            ignition.signing.pkcs11Cfg=./pkcs11.cfg
         """.trimIndent()
     }
 

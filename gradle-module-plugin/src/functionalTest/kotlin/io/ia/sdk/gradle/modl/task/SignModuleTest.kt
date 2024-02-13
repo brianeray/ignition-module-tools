@@ -15,10 +15,20 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.test.Ignore
 
 class SignModuleTest : BaseTest() {
     companion object {
         const val PATH_KEY = "<FILEPATH>"
+        // For a specific YubiKey 5; you may need to change this for another key
+        // FIXME may need a different certFile + certPassword
+        val PKCS11_HSM_SIGNING_PROPERTY_ENTRIES = """
+            ignition.signing.certAlias=X.509 Certificate for Digital Signature
+            ignition.signing.keystorePassword=123456
+            ignition.signing.certFile=./certificate.pem
+            ignition.signing.certPassword=password
+            ignition.signing.pkcs11Cfg=./pkcs11-yk5-win.cfg
+        """.trimIndent()
     }
 
     @Test
@@ -46,7 +56,7 @@ class SignModuleTest : BaseTest() {
 
         val projectDir = ModuleGenerator.generate(config)
 
-        val result = runTask(projectDir.toFile(), "signModule")
+        val result = runTask(projectDir.toFile(), "signModule", "--stacktrace")
 
         val buildDir = projectDir.resolve("build")
         val signedFileName = signedModuleName(moduleName)
@@ -299,7 +309,7 @@ class SignModuleTest : BaseTest() {
     }
 
     @Test
-    // @Tag("IGN-7871")
+    //@Tag("IGN-7871")
     fun `module failed - file keystore in gradle properties, pkcs11 keystore on cmdline`() {
         val dirName = currentMethodName()
         val moduleName = "I Was Signed"
@@ -332,8 +342,8 @@ class SignModuleTest : BaseTest() {
             signingResourcesDestination, listOf("pkcs11.cfg")
         ).first()
 
-        // But specifying that  file suggests there is an HSM keystore,
-        // which conflicts with the file-based keystore.
+        // But specifying that file via option suggests there is an HSM
+        // keystore, which conflicts with the file-based keystore.
         val taskArgs = listOf(
             "signModule",
             "--pkcs11Cfg=$pkcs11CfgPath",
@@ -353,25 +363,208 @@ class SignModuleTest : BaseTest() {
         )
         assertContains(result.output, "InvalidUserDataException")
     }
-/*
+
     @Test
-    // @Tag("IGN-7871")
+    //@Tag("IGN-7871")
     fun `module failed - file keystore on cmdline, pkcs11 keystore in gradle properties`() {
-        // FIXME add coverage
+        val dirName = currentMethodName()
+        val moduleName = "I Was Signed"
+        val workingDir: File = tempFolder.newFolder(dirName)
+
+        val config = GeneratorConfigBuilder()
+            .moduleName(moduleName)
+            .scopes("GCD")
+            .packageName("check.my.signage")
+            .parentDir(workingDir.toPath())
+            .debugPluginConfig(true)
+            .allowUnsignedModules(false)
+            .settingsDsl(GradleDsl.GROOVY)
+            .rootPluginConfig(
+                """
+                    id("io.ia.sdk.modl")
+                """.trimIndent()
+            )
+            .build()
+
+        val projectDir = ModuleGenerator.generate(config)
+
+        // Write PKCS#11 HSM config file + specify in gradle.properties.
+        val signingResourcesDestination =
+            workingDir.toPath().resolve("i-was-signed")
+        preparePKCS11SigningTestResources(signingResourcesDestination)
+
+        // Also write file-based keystore, which by itself is OK.
+        val ksPath = writeResourceFiles(
+            signingResourcesDestination, listOf("keystore.jks")
+        ).first()
+
+        // But specifying that file suggests there is a file keystore,
+        // which conflicts with the HSM keystore.
+        val taskArgs = listOf(
+            "signModule",
+            "--keystoreFile=$ksPath",
+            "--stacktrace",
+        )
+        val result: BuildResult =
+            runTaskAndFail(projectDir.toFile(), taskArgs)
+
+        val task = result.task(":signModule")
+        assertEquals(task?.outcome, TaskOutcome.FAILED)
+        assertContains(
+            result.output,
+            "'--keystoreFile' flag/'ignition.signing.keystoreFile' property " +
+                "in gradle.properties or " +
+                "'--pkcs11Cfg' flag/'ignition.signing.pkcs11Cfg' property " +
+                "in gradle.properties but not both"
+        )
+        assertContains(result.output, "InvalidUserDataException")
     }
 
     @Test
-    // @Tag("IGN-7871")
+    //@Tag("IGN-7871")
+    fun `module failed - file and pkcs11 keystore on cmdline`() {
+        val dirName = currentMethodName()
+        val moduleName = "I Was Signed"
+        val workingDir: File = tempFolder.newFolder(dirName)
+
+        val config = GeneratorConfigBuilder()
+            .moduleName(moduleName)
+            .scopes("GCD")
+            .packageName("check.my.signage")
+            .parentDir(workingDir.toPath())
+            .debugPluginConfig(true)
+            .allowUnsignedModules(false)
+            .settingsDsl(GradleDsl.GROOVY)
+            .rootPluginConfig(
+                """
+                    id("io.ia.sdk.modl")
+                """.trimIndent()
+            )
+            .build()
+
+        val projectDir = ModuleGenerator.generate(config)
+
+        // Write PKCS#11 HSM config file + write file-based keystore, which
+        // by itself is OK.
+        val signingResourcesDestination =
+            workingDir.toPath().resolve("i-was-signed")
+        val (ksPath, pkcs11Cfg) = writeResourceFiles(
+            signingResourcesDestination,
+            listOf("keystore.jks", "pkcs11.cfg", "certificate.pem")
+        )
+
+        // But specifying that file suggests there is a file keystore,
+        // which conflicts with the HSM keystore.
+        val taskArgs = listOf(
+            "signModule",
+            "--keystoreFile=$ksPath",
+            "--pkcs11Cfg=$pkcs11Cfg",
+            "--keystorePassword=password",
+            "--certAlias=selfsigned",
+            "--certFile=./certificate.pem",
+            "--certPassword=password",
+            "--stacktrace",
+        )
+        val result: BuildResult =
+            runTaskAndFail(projectDir.toFile(), taskArgs)
+
+        val task = result.task(":signModule")
+        assertEquals(task?.outcome, TaskOutcome.FAILED)
+        assertContains(
+            result.output,
+            "'--keystoreFile' flag/'ignition.signing.keystoreFile' property " +
+                "in gradle.properties or " +
+                "'--pkcs11Cfg' flag/'ignition.signing.pkcs11Cfg' property " +
+                "in gradle.properties but not both"
+        )
+        assertContains(result.output, "InvalidUserDataException")
+    }
+/*
+    @Test
+    //@Tag("IGN-7871")
     fun `module signed with pkcs11 keystore in gradle properties`() {
         // FIXME mock the hw key?
         // FIXME write an integration test w/ actual hw key?
     }
 
     @Test
-    // @Tag("IGN-7871")
+    //@Tag("IGN-7871")
     fun `module signed with pkcs11 keystore on cmdline`() {
         // FIXME mock the hw key?
         // FIXME write an integration test w/ actual hw key?
     }
 */
+    // This is a test with an actual PKCS#11-compliant YubiKey 5, on Windows.
+    // As such it is typically set to @Ignore.
+    @Test
+    @Ignore
+    //@Tag("integration")
+    //@Tag("IGN-7871")
+    fun `module signed with physical pkcs11 HSM in gradle properties`() {
+        val dirName = currentMethodName()
+        val moduleName = "I Was Signed"
+        val workingDir: File = tempFolder.newFolder(dirName)
+
+        val config = GeneratorConfigBuilder()
+            .moduleName(moduleName)
+            .scopes("GCD")
+            .packageName("check.my.signage")
+            .parentDir(workingDir.toPath())
+            .debugPluginConfig(true)
+            .allowUnsignedModules(false)
+            .settingsDsl(GradleDsl.GROOVY)
+            .rootPluginConfig(
+                """
+                            id("io.ia.sdk.modl")
+                        """.trimIndent()
+            )
+            .build()
+
+        val projectDir = ModuleGenerator.generate(config)
+        // Write PKCS#11 config file and and cert file, and specify them in
+        // gradle.properties.
+        val signingResourcesDestination =
+            workingDir.toPath().resolve("i-was-signed")
+        writeResourceFiles(
+            signingResourcesDestination,
+            listOf("certificate.pem", "pkcs11-yk5-win.cfg")
+        )
+        writeSigningCredentials(
+            signingResourcesDestination,
+            PKCS11_HSM_SIGNING_PROPERTY_ENTRIES
+        )
+
+        val result: BuildResult = runTask(projectDir.toFile(), "signModule")
+
+        val task = result.task(":signModule")
+        assertEquals(task?.outcome, TaskOutcome.SUCCESS)
+
+        val buildDir = projectDir.resolve("build")
+        val signedFileName = signedModuleName(moduleName)
+
+        val signed = File("${buildDir.toAbsolutePath()}/$signedFileName")
+
+        // unzip and look for signatures file
+        val zm = ZipMap(signed)
+        val file = zm.get("signatures.properties")
+
+        assertTrue(signed.exists(), "signed file exists")
+        assertNotNull(file, "signatures.properties found in signed modl")
+        // FIXME write an integration test w/ actual hw key?
+    }
+
+    /*
+    // This is a test with an actual PKCS#11-compliant YubiKey 5, on Windows.
+    // As such it is typically set to @Ignore.
+    @Test
+    //@Ignore
+    //@Tag("integration")
+    //@Tag("IGN-7871")
+    fun `module signed with physical pkcs11 HSM on cmdline`() {
+        // FIXME mock the hw key?
+        // FIXME write an integration test w/ actual hw key?
+    }
+ */
+
+    // FIXME refactor the repetitive project build LOCs
 }

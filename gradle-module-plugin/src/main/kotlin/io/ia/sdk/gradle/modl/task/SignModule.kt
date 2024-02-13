@@ -64,11 +64,15 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
 
     @get:Input
     @get:Optional
-    val keystorePath: Property<String> = _objects.property(String::class.java).convention(
-        _providers.provider {
-            if (skipSigning.get()) SKIP else propOrLogError(KEYSTORE_FILE_FLAG, "keystore file location")
-        }
-    )
+    val keystorePath: Property<String> =
+        _objects.property(String::class.java).convention(
+            _providers.provider {
+                if (skipSigning.get()) SKIP
+                // FIXME rivalrous w/ keystorePath so can't require it?
+                else propFromProjectProps(KEYSTORE_FILE_FLAG, "keystore file location")
+                )
+            }
+        )
 
     @Option(
         option = KEYSTORE_FILE_FLAG,
@@ -85,11 +89,8 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
         _objects.property(String::class.java).convention(
             _providers.provider {
                 if (skipSigning.get()) SKIP
-                // FIXME rivalrous w/ keystore opts/props so can't require it?
-                else propOrLogError(
-                    PKCS11_CFG_FLAG,
-                    "PKCS#11 HSM config file location"
-                )
+                // FIXME rivalrous w/ keystorePath so can't require it?
+                else propFromProjectProps(PKCS11_CFG_FLAG,"PKCS#11 HSM config file location")
             }
         )
 
@@ -200,10 +201,11 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
         }
     )
 
+    // FIXME allow rival props check
     @Suppress("MemberVisibilityCanBePrivate")
     protected fun propOrLogError(flag: String, itemName: String): String {
-        val propKey = Constants.SIGNING_PROPERTIES[flag]
-        val propValue = project.properties[propKey] as String?
+        val propKey = Constants.SIGNING_PROPERTIES[flag] as String
+        val propValue = propFromProjectProps(propKey)
         if (propValue == null) {
             logger.error(
                 "Required $itemName not found.  Specify via flag '--$flag=<value>', or in gradle.properties" +
@@ -212,6 +214,9 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
         }
         return propValue.toString()
     }
+
+    private fun propFromProjectProps(propKey: String): String? =
+        project.properties[propKey] as String?
 
     @Option(option = CERT_PW_FLAG, description = "The password for the certificate used in signing.")
     fun setCertPw(pw: String) {

@@ -10,6 +10,7 @@ import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.Test
 import java.io.File
+import java.nio.file.Path
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -20,6 +21,7 @@ import kotlin.test.Ignore
 class SignModuleTest : BaseTest() {
     companion object {
         const val PATH_KEY = "<FILEPATH>"
+        const val MODULE_NAME = "I Was Signed"
         // For a specific YubiKey 5; you may need to change this for another key
         // FIXME may need a different certFile + certPassword
         val PKCS11_HSM_SIGNING_PROPERTY_ENTRIES = """
@@ -34,34 +36,18 @@ class SignModuleTest : BaseTest() {
     @Test
     fun `module built and signed successfully with gradle properties file`() {
         val parentDir: File = tempFolder.newFolder("module_built_and_signed_successfully")
-        val moduleName = "I Was Signed"
         val signingResourcesDestination = parentDir.toPath().resolve("i-was-signed")
 
         prepareSigningTestResources(signingResourcesDestination)
 
-        val config = GeneratorConfigBuilder()
-            .moduleName(moduleName)
-            .scopes("GCD")
-            .packageName("check.my.signage")
-            .parentDir(parentDir.toPath())
-            .debugPluginConfig(true)
-            .allowUnsignedModules(false)
-            .settingsDsl(GradleDsl.GROOVY)
-            .rootPluginConfig(
-                """
-                    id("io.ia.sdk.modl")
-                """.trimIndent()
-            )
-            .build()
-
-        val projectDir = ModuleGenerator.generate(config)
+        val projectDir = generateModule(parentDir)
 
         val result = runTask(
             projectDir.toFile(), listOf("signModule", "--stacktrace")
         )
 
         val buildDir = projectDir.resolve("build")
-        val signedFileName = signedModuleName(moduleName)
+        val signedFileName = signedModuleName(MODULE_NAME)
 
         val signedFilePath = "${buildDir.toAbsolutePath()}/$signedFileName"
         val signed = File(signedFilePath)
@@ -78,27 +64,11 @@ class SignModuleTest : BaseTest() {
     @Test
     fun `module signed with cmdline flags`() {
         val parentDir: File = tempFolder.newFolder("module_signed_with_cmdline_flags")
-        val moduleName = "I Was Signed"
         val signingResourcesDestination = parentDir.toPath().resolve("i-was-signed")
 
         val signResources = prepareSigningTestResources(signingResourcesDestination, false)
 
-        val config = GeneratorConfigBuilder()
-            .moduleName(moduleName)
-            .scopes("GCD")
-            .packageName("check.my.signage")
-            .parentDir(parentDir.toPath())
-            .debugPluginConfig(true)
-            .allowUnsignedModules(false)
-            .settingsDsl(GradleDsl.GROOVY)
-            .rootPluginConfig(
-                """
-                    id("io.ia.sdk.modl")
-                """.trimIndent()
-            )
-            .build()
-
-        val projectDir = ModuleGenerator.generate(config)
+        val projectDir = generateModule(parentDir)
 
         val taskArgs = listOf(
             ":signModule",
@@ -114,7 +84,7 @@ class SignModuleTest : BaseTest() {
         runTask(projectDir.toFile(), taskArgs)
 
         val buildDir = projectDir.resolve("build")
-        val signedFileName = signedModuleName(moduleName)
+        val signedFileName = signedModuleName(MODULE_NAME)
 
         val signedFilePath = "${buildDir.toAbsolutePath()}/$signedFileName"
         val signed = File(signedFilePath)
@@ -129,18 +99,10 @@ class SignModuleTest : BaseTest() {
 
     @Test
     fun `module signing failed due to missing signing configuration properties`() {
-        val name = "I Was Signed"
         val dirName = currentMethodName()
-        val config = GeneratorConfigBuilder()
-            .moduleName(name)
-            .scopes("GCD")
-            .packageName("check.my.signage")
-            .parentDir(tempFolder.newFolder(dirName).toPath())
-            .allowUnsignedModules(false)
-            .settingsDsl(GradleDsl.GROOVY)
-            .build()
 
-        val projectDir = ModuleGenerator.generate(config)
+        val projectDir = generateModule(tempFolder.newFolder(dirName))
+
         var result: BuildResult? = null
         var msg: String = ""
         try {
@@ -178,25 +140,10 @@ class SignModuleTest : BaseTest() {
     @Test
     fun `module failed with missing keystore pw flags`() {
         val dirName = currentMethodName()
-        val moduleName = "I Was Signed"
         val workingDir: File = tempFolder.newFolder(dirName)
 
-        val config = GeneratorConfigBuilder()
-            .moduleName(moduleName)
-            .scopes("GCD")
-            .packageName("check.my.signage")
-            .parentDir(workingDir.toPath())
-            .debugPluginConfig(true)
-            .allowUnsignedModules(false)
-            .settingsDsl(GradleDsl.GROOVY)
-            .rootPluginConfig(
-                """
-                    id("io.ia.sdk.modl")
-                """.trimIndent()
-            )
-            .build()
+        val projectDir = generateModule(workingDir)
 
-        val projectDir = ModuleGenerator.generate(config)
         val signResources = prepareSigningTestResources(projectDir, false)
 
         val taskArgs = listOf(
@@ -228,25 +175,10 @@ class SignModuleTest : BaseTest() {
     @Test
     fun `module failed with missing cert pw flags`() {
         val dirName = currentMethodName()
-        val moduleName = "I Was Signed"
         val workingDir: File = tempFolder.newFolder(dirName)
 
-        val config = GeneratorConfigBuilder()
-            .moduleName(moduleName)
-            .scopes("GCD")
-            .packageName("check.my.signage")
-            .parentDir(workingDir.toPath())
-            .debugPluginConfig(true)
-            .allowUnsignedModules(false)
-            .settingsDsl(GradleDsl.GROOVY)
-            .rootPluginConfig(
-                """
-                    id("io.ia.sdk.modl")
-                """.trimIndent()
-            )
-            .build()
+        val projectDir = generateModule(workingDir)
 
-        val projectDir = ModuleGenerator.generate(config)
         val signResources = prepareSigningTestResources(projectDir, false)
 
         val taskArgs = listOf(
@@ -279,25 +211,9 @@ class SignModuleTest : BaseTest() {
     // @Tag("IGN-7871")
     fun `module failed - file and pkcs11 keystore in gradle properties`() {
         val dirName = currentMethodName()
-        val moduleName = "I Was Signed"
         val workingDir: File = tempFolder.newFolder(dirName)
 
-        val config = GeneratorConfigBuilder()
-            .moduleName(moduleName)
-            .scopes("GCD")
-            .packageName("check.my.signage")
-            .parentDir(workingDir.toPath())
-            .debugPluginConfig(true)
-            .allowUnsignedModules(false)
-            .settingsDsl(GradleDsl.GROOVY)
-            .rootPluginConfig(
-                """
-                    id("io.ia.sdk.modl")
-                """.trimIndent()
-            )
-            .build()
-
-        val projectDir = ModuleGenerator.generate(config)
+        val projectDir = generateModule(workingDir)
 
         // These calls yield a gradle.properties file with both file- and
         // PKCS#11-based keystore config--a conflict.
@@ -334,25 +250,9 @@ class SignModuleTest : BaseTest() {
     //@Tag("IGN-7871")
     fun `module failed - file keystore in gradle properties, pkcs11 keystore on cmdline`() {
         val dirName = currentMethodName()
-        val moduleName = "I Was Signed"
         val workingDir: File = tempFolder.newFolder(dirName)
 
-        val config = GeneratorConfigBuilder()
-            .moduleName(moduleName)
-            .scopes("GCD")
-            .packageName("check.my.signage")
-            .parentDir(workingDir.toPath())
-            .debugPluginConfig(true)
-            .allowUnsignedModules(false)
-            .settingsDsl(GradleDsl.GROOVY)
-            .rootPluginConfig(
-                """
-                    id("io.ia.sdk.modl")
-                """.trimIndent()
-            )
-            .build()
-
-        val projectDir = ModuleGenerator.generate(config)
+        val projectDir = generateModule(workingDir)
 
         // Write file-based keystore + specify in gradle.properties.
         val signingResourcesDestination =
@@ -390,25 +290,9 @@ class SignModuleTest : BaseTest() {
     //@Tag("IGN-7871")
     fun `module failed - file keystore on cmdline, pkcs11 keystore in gradle properties`() {
         val dirName = currentMethodName()
-        val moduleName = "I Was Signed"
         val workingDir: File = tempFolder.newFolder(dirName)
 
-        val config = GeneratorConfigBuilder()
-            .moduleName(moduleName)
-            .scopes("GCD")
-            .packageName("check.my.signage")
-            .parentDir(workingDir.toPath())
-            .debugPluginConfig(true)
-            .allowUnsignedModules(false)
-            .settingsDsl(GradleDsl.GROOVY)
-            .rootPluginConfig(
-                """
-                    id("io.ia.sdk.modl")
-                """.trimIndent()
-            )
-            .build()
-
-        val projectDir = ModuleGenerator.generate(config)
+        val projectDir = generateModule(workingDir)
 
         // Write PKCS#11 HSM config file + specify in gradle.properties.
         val signingResourcesDestination =
@@ -446,25 +330,9 @@ class SignModuleTest : BaseTest() {
     //@Tag("IGN-7871")
     fun `module failed - file and pkcs11 keystore on cmdline`() {
         val dirName = currentMethodName()
-        val moduleName = "I Was Signed"
         val workingDir: File = tempFolder.newFolder(dirName)
 
-        val config = GeneratorConfigBuilder()
-            .moduleName(moduleName)
-            .scopes("GCD")
-            .packageName("check.my.signage")
-            .parentDir(workingDir.toPath())
-            .debugPluginConfig(true)
-            .allowUnsignedModules(false)
-            .settingsDsl(GradleDsl.GROOVY)
-            .rootPluginConfig(
-                """
-                    id("io.ia.sdk.modl")
-                """.trimIndent()
-            )
-            .build()
-
-        val projectDir = ModuleGenerator.generate(config)
+        val projectDir = generateModule(workingDir)
 
         // Write PKCS#11 HSM config file + write file-based keystore, which
         // by itself is OK.
@@ -522,25 +390,10 @@ class SignModuleTest : BaseTest() {
     //@Tag("IGN-7871")
     fun `module signed with physical pkcs11 HSM in gradle properties`() {
         val dirName = currentMethodName()
-        val moduleName = "I Was Signed"
         val workingDir: File = tempFolder.newFolder(dirName)
 
-        val config = GeneratorConfigBuilder()
-            .moduleName(moduleName)
-            .scopes("GCD")
-            .packageName("check.my.signage")
-            .parentDir(workingDir.toPath())
-            .debugPluginConfig(true)
-            .allowUnsignedModules(false)
-            .settingsDsl(GradleDsl.GROOVY)
-            .rootPluginConfig(
-                """
-                            id("io.ia.sdk.modl")
-                        """.trimIndent()
-            )
-            .build()
+        val projectDir = generateModule(workingDir)
 
-        val projectDir = ModuleGenerator.generate(config)
         // Write PKCS#11 config file and and cert file, and specify them in
         // gradle.properties.
         val signingResourcesDestination =
@@ -560,7 +413,7 @@ class SignModuleTest : BaseTest() {
         assertEquals(task?.outcome, TaskOutcome.SUCCESS)
 
         val buildDir = projectDir.resolve("build")
-        val signedFileName = signedModuleName(moduleName)
+        val signedFileName = signedModuleName(MODULE_NAME)
 
         val signed = File("${buildDir.toAbsolutePath()}/$signedFileName")
 
@@ -586,6 +439,22 @@ class SignModuleTest : BaseTest() {
     }
  */
 
-    // FIXME refactor the repetitive project build LOCs
-    // FIXME can the temp dir fixture be nuked after each test?
+    private fun generateModule(projDir: File): Path {
+        val config = GeneratorConfigBuilder()
+            .moduleName(MODULE_NAME)
+            .scopes("GCD")
+            .packageName("check.my.signage")
+            .parentDir(projDir.toPath())
+            .debugPluginConfig(true)
+            .allowUnsignedModules(false)
+            .settingsDsl(GradleDsl.GROOVY)
+            .rootPluginConfig(
+                """
+                    id("io.ia.sdk.modl")
+                """.trimIndent()
+            )
+            .build()
+
+        return ModuleGenerator.generate(config)
+    }
 }

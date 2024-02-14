@@ -26,11 +26,14 @@ import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.options.Option
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.IOException
+import java.io.InputStream
 import java.io.OutputStream
 import java.io.PrintStream
 import java.security.KeyStore
 import java.security.PrivateKey
+import java.security.Security
 import javax.inject.Inject
 
 /**
@@ -40,6 +43,7 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
     companion object {
         const val ID = "signModule"
         private const val SKIP = "<SKIP_SIGNING_ENABLED>" // placeholder prop value for skipModuleSigning
+        private const val PKCS11_KS_TYPE = "PKCS11"
     }
 
     init {
@@ -248,8 +252,24 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
         }
 
         // PKCS#11 HSM (hardware key)-based keystore
-        // FIXME this is first place we need to splice in PKCS#11/file-based split
+        if (pkcs11Cfg.isPresent) {
+            project.logger.debug(
+                "PKCS#11 config specified, using KeyStore instance type 'PKCS11'"
+            )
+            val cfgFile = pkcs11Cfg.get()
+            val cfgPath = cfgFile.absolutePath
+            if (!cfgFile.exists()) {
+                throw FileNotFoundException(
+                    "PKCS#11 configuration file [$cfgPath] does not exist."
+                )
+            }
 
+            val pvdr = Security.getProvider("SunPKCS11").configure(cfgPath)
+            Security.addProvider(pvdr)
+            return KeyStore.getInstance(PKCS11_KS_TYPE)
+        }
+
+        // Backstop, we don't know what kind of keystore we have
         throw Exception("Failed to resolve keystore!")
     }
 
@@ -330,18 +350,25 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
         logger.debug(
             "Signing module with keystoreFile: ${keyStoreFile?.absolutePath}, " +
                 "pkcs11CfgFile: ${pkcs11CfgFile?.absolutePath}, " +
-                "keystorePassword: ${"*".repeat(keystorePassword.length)}, " +
+                "keystorePassword: ${"*".repeat(20)}, " +
                 "cert: ${cert.absolutePath}, " +
-                "certPw: ${"*".repeat(certPassword.length)}, " +
+                "certPw: ${"*".repeat(20)}, " +
                 "certAlias: $certAlias"
         )
 
         val keyStore: KeyStore = getKeyStore()
-        keyStore.load(keyStoreFile?.inputStream(), keystorePassword.toCharArray())
+        loadKeyStore(keyStore, keystorePassword, keyStoreFile)
 
         val privateKey: PrivateKey = keyStore.getKey(certAlias, certPassword.toCharArray()) as PrivateKey
 
         ModuleSigner(privateKey, cert.inputStream())
             .signModule(PrintStream(OutputStream.nullOutputStream()), unsignedModule, outFile)
+    }
+
+    private fun loadKeyStore(ks: KeyStore, ksPwd: String, ksFile: File?): Unit {
+        // If PKCS#11 HSM (hardware key) keystore, forgo the input stream.
+        val maybeStream: InputStream? =
+            if (ks.type == PKCS11_KS_TYPE) null else ksFile?.inputStream()
+        ks.load(maybeStream, ksPwd.toCharArray())
     }
 }

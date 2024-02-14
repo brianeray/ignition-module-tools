@@ -23,9 +23,17 @@ class SignModuleTest : BaseTest() {
         const val PATH_KEY = "<FILEPATH>"
         const val MODULE_NAME = "I Was Signed"
         // For a specific YubiKey 5; you may need to change this for another key
-        // FIXME may need a different certFile + certPassword
+        // FIXME may need to fine-tune these params; both for my test YK5 and
+        // to support more HSMs
         val PKCS11_HSM_SIGNING_PROPERTY_ENTRIES = """
-            ignition.signing.certAlias=X.509 Certificate for Digital Signature
+            #Hack around YK5 (signing) slot 9c's second PIN challenge on
+            #signing following the intial keystore PIN challenge by using a
+            #cert in (auth) slot 9a.
+            #
+            #ignition.signing.certAlias=X.509 Certificate for Digital Signature
+            #
+            ignition.signing.certAlias=X.509 Certificate for PIV Authentication
+
             ignition.signing.keystorePassword=123456
             ignition.signing.certFile=./certificate.pem
             ignition.signing.certPassword=password

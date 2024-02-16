@@ -1,6 +1,7 @@
 package io.ia.sdk.gradle.modl.task
 
 import com.inductiveautomation.ignitionsdk.ZipMap
+import com.inductiveautomation.ignitionsdk.ZipMapFile
 import io.ia.ignition.module.generator.ModuleGenerator
 import io.ia.ignition.module.generator.api.GeneratorConfigBuilder
 import io.ia.ignition.module.generator.api.GradleDsl
@@ -16,29 +17,30 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlin.test.Ignore
+//import kotlin.test.Ignore
 
 class SignModuleTest : BaseTest() {
     companion object {
         const val PATH_KEY = "<FILEPATH>"
         const val MODULE_NAME = "I Was Signed"
         // For a specific YubiKey 5; you may need to change this for another key
-        // FIXME may need to fine-tune these params; both for my test YK5 and
-        // to support more HSMs
         val PKCS11_HSM_SIGNING_PROPERTY_ENTRIES = """
-            #Hack around YK5 (signing) slot 9c's second PIN challenge on
-            #signing following the intial keystore PIN challenge by using a
-            #cert in (auth) slot 9a.
+            # Hack around YK5 (signing) slot 9c's second PIN challenge on
+            # signing following the initial keystore PIN challenge by using a
+            # cert in (auth) slot 9a.
             #
             #ignition.signing.certAlias=X.509 Certificate for Digital Signature
-            #
             ignition.signing.certAlias=X.509 Certificate for PIV Authentication
-
             ignition.signing.keystorePassword=123456
-            ignition.signing.certFile=./certificate.pem
+            ignition.signing.certFile=./pkcs11-yk5-win.crt
+            #
+            # Ignored for now, but may be used in future for slot 9c.
             ignition.signing.certPassword=password
             ignition.signing.pkcs11CfgFile=./pkcs11-yk5-win.cfg
         """.trimIndent()
+
+        const val SIG_PROPERTIES_FILENAME = "signatures.properties"
+        const val CERT_PKCS7_FILENAME = "certificates.p7b"
     }
 
     @Test
@@ -60,13 +62,21 @@ class SignModuleTest : BaseTest() {
         val signedFilePath = "${buildDir.toAbsolutePath()}/$signedFileName"
         val signed = File(signedFilePath)
 
-        // unzip and look for signatures file
+        // unzip and look for signatures properties file
         val zm = ZipMap(signed)
-        val file = zm.get("signatures.properties")
+        val sigPropsFile = zm[SIG_PROPERTIES_FILENAME]
+        assertTrue(signed.exists(), "signed sigPropsFile exists")
+        assertNotNull(sigPropsFile, "$SIG_PROPERTIES_FILENAME found in signed modl")
 
-        assertTrue(signed.exists(), "signed file exists")
-        assertNotNull(file, "signatures.properties found in signed modl")
-        assertTrue(result.output.toString().contains("SUCCESSFUL"))
+        // and the cert file
+        val certFile = zm[CERT_PKCS7_FILENAME]
+        assertNotNull(certFile, "$CERT_PKCS7_FILENAME found in signed modl")
+
+        // If you want to dump file contents to stdout, uncomment this
+        //logZipMapFileText(SIG_PROPERTIES_FILENAME, sigPropsFile)
+        //logZipMapFileText(CERT_PKCS7_FILENAME, certFile)
+
+        assertContains(result.output, "SUCCESSFUL")
     }
 
     @Test
@@ -86,7 +96,6 @@ class SignModuleTest : BaseTest() {
             "--certAlias=selfsigned",
             "--certPassword=password",
             "--stacktrace",
-            "--info"
         )
 
         runTask(projectDir.toFile(), taskArgs)
@@ -97,12 +106,19 @@ class SignModuleTest : BaseTest() {
         val signedFilePath = "${buildDir.toAbsolutePath()}/$signedFileName"
         val signed = File(signedFilePath)
 
-        // unzip and look for signatures file
+        // unzip and look for signatures properties file
         val zm = ZipMap(signed)
-        val file = zm.get("signatures.properties")
+        val sigPropsFile = zm[SIG_PROPERTIES_FILENAME]
+        assertTrue(signed.exists(), "signed sigPropsFile exists")
+        assertNotNull(sigPropsFile, "$SIG_PROPERTIES_FILENAME found in signed modl")
 
-        assertTrue(signed.exists(), "signed file exists")
-        assertNotNull(file, "signatures.properties found in signed modl")
+        // and the cert file
+        val certFile = zm[CERT_PKCS7_FILENAME]
+        assertNotNull(certFile, "$CERT_PKCS7_FILENAME found in signed modl")
+
+        // If you want to dump file contents to stdout, uncomment this
+        //logZipMapFileText(SIG_PROPERTIES_FILENAME, sigPropsFile)
+        //logZipMapFileText(CERT_PKCS7_FILENAME, certFile)
     }
 
     @Test
@@ -380,23 +396,18 @@ class SignModuleTest : BaseTest() {
 /*
     @Test
     //@Tag("IGN-7871")
-    fun `module signed with pkcs11 keystore in gradle properties`() {
-        // FIXME mock the hw key?
-    }
-
-    @Test
-    //@Tag("IGN-7871")
-    fun `module signed with pkcs11 keystore on cmdline`() {
+    fun `skip signing; missing signing properties ignored`() {
         // FIXME mock the hw key?
     }
 */
+
     // This is a test with an actual PKCS#11-compliant YubiKey 5, on Windows.
     // As such it is typically set to @Ignore.
     @Test
-    //@Ignore
-    //@Tag("integration")
+    //@Ignore // FIXME uncomment annotation after testing
+    //@Tag("integration") // break out into a test suite at some point
     //@Tag("IGN-7871")
-    fun `module signed with physical pkcs11 HSM in gradle properties`() {
+    fun `integration - module signed with physical pkcs11 HSM in gradle properties`() {
         val dirName = currentMethodName()
         val workingDir: File = tempFolder.newFolder(dirName)
 
@@ -408,7 +419,7 @@ class SignModuleTest : BaseTest() {
             workingDir.toPath().resolve("i-was-signed")
         writeResourceFiles(
             signingResourcesDestination,
-            listOf("certificate.pem", "pkcs11-yk5-win.cfg")
+            listOf("pkcs11-yk5-win.crt", "pkcs11-yk5-win.cfg")
         )
         writeSigningCredentials(
             targetDirectory = signingResourcesDestination,
@@ -429,27 +440,84 @@ class SignModuleTest : BaseTest() {
 
         val signed = File("${buildDir.toAbsolutePath()}/$signedFileName")
 
-        // unzip and look for signatures file
+        // unzip and look for signatures properties file
         val zm = ZipMap(signed)
-        val file = zm.get("signatures.properties")
+        val sigPropsFile = zm[SIG_PROPERTIES_FILENAME]
+        assertTrue(signed.exists(), "signed sigPropsFile exists")
+        assertNotNull(sigPropsFile, "$SIG_PROPERTIES_FILENAME found in signed modl")
 
-        assertTrue(signed.exists(), "signed file exists")
-        assertNotNull(file, "signatures.properties found in signed modl")
-        // FIXME HERE write an integration test w/ actual hw key?
+        // and the cert file
+        val certFile = zm[CERT_PKCS7_FILENAME]
+        assertNotNull(certFile, "$CERT_PKCS7_FILENAME found in signed modl")
+
+        // If you want to dump file contents to stdout, uncomment this
+        //logZipMapFileText(SIG_PROPERTIES_FILENAME, sigPropsFile)
+        //logZipMapFileText(CERT_PKCS7_FILENAME, certFile)
     }
 
-    /*
     // This is a test with an actual PKCS#11-compliant YubiKey 5, on Windows.
     // As such it is typically set to @Ignore.
     @Test
-    //@Ignore
-    //@Tag("integration")
+    //@Ignore // FIXME uncomment annotation after testing
+    //@Tag("integration") // break out into a test suite at some point
     //@Tag("IGN-7871")
-    fun `module signed with physical pkcs11 HSM on cmdline`() {
-        // FIXME mock the hw key?
-        // FIXME write an integration test w/ actual hw key?
+    fun `integration - module signed with physical pkcs11 HSM on cmdline`() {
+        val dirName = currentMethodName()
+        val workingDir: File = tempFolder.newFolder(dirName)
+
+        val projectDir = generateModule(workingDir)
+
+        // Write PKCS#11 config file and and cert file, and specify them in
+        // gradle.properties.
+        val signingResourcesDestination =
+            workingDir.toPath().resolve("i-was-signed")
+        val (certPath, cfgPath) = writeResourceFiles(
+            signingResourcesDestination,
+            listOf("pkcs11-yk5-win.crt", "pkcs11-yk5-win.cfg")
+        )
+
+        val taskArgs = listOf(
+            ":signModule",
+            // hack around YK5 (signing) slot 9c's second PIN challenge on top
+            // of initial keystore PIN challenge by using the cert in (auth)
+            // slot 9a
+            //"--certAlias=X.509 Certificate for Digital Signature",
+            "--certAlias=X.509 Certificate for PIV Authentication",
+            "--keystorePassword=123456",
+            "--certFile=$certPath",
+            // ignored for now, but may be used in future for slot 9c
+            "--certPassword=password",
+            "--pkcs11CfgFile=./pkcs11-yk5-win.cfg",
+            "--stacktrace",
+        )
+
+        val result: BuildResult = runTask(
+            projectDir.toFile(),
+            taskArgs
+        )
+
+        val task = result.task(":signModule")
+        assertEquals(task?.outcome, TaskOutcome.SUCCESS)
+
+        val buildDir = projectDir.resolve("build")
+        val signedFileName = signedModuleName(MODULE_NAME)
+
+        val signed = File("${buildDir.toAbsolutePath()}/$signedFileName")
+
+        // unzip and look for signatures properties file
+        val zm = ZipMap(signed)
+        val sigPropsFile = zm[SIG_PROPERTIES_FILENAME]
+        assertTrue(signed.exists(), "signed sigPropsFile exists")
+        assertNotNull(sigPropsFile, "$SIG_PROPERTIES_FILENAME found in signed modl")
+
+        // and the cert file
+        val certFile = zm[CERT_PKCS7_FILENAME]
+        assertNotNull(certFile, "$CERT_PKCS7_FILENAME found in signed modl")
+
+        // If you want to dump file contents to stdout, uncomment this
+        //logZipMapFileText(SIG_PROPERTIES_FILENAME, sigPropsFile)
+        //logZipMapFileText(CERT_PKCS7_FILENAME, certFile)
     }
- */
 
     private fun generateModule(projDir: File): Path {
         val config = GeneratorConfigBuilder()
@@ -468,5 +536,10 @@ class SignModuleTest : BaseTest() {
             .build()
 
         return ModuleGenerator.generate(config)
+    }
+
+    private fun logZipMapFileText(key: String, file: ZipMapFile) {
+        println("$key text:")
+        println(file.bytes.toString(Charsets.UTF_8))
     }
 }

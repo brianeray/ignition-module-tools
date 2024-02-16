@@ -346,7 +346,7 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
         certAlias: String,
         unsignedModule: File,
         outFile: File,
-    ) {
+    ): Unit {
         logger.debug(
             "Signing module with keystoreFile: ${keyStoreFile?.absolutePath}, " +
                 "pkcs11CfgFile: ${pkcs11CfgFile?.absolutePath}, " +

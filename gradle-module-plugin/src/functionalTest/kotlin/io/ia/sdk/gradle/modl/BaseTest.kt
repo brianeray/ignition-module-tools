@@ -65,8 +65,6 @@ open class BaseTest {
                     propsFl.exists() &&
                         !propsFl.readText().matches(Regex("""\R$"""))
                 ) {
-                    // FIXME zap after testing done
-                    println("[$propsFl] Lacks EOF EOL, adding one now ;-)")
                     props.append("\n")
                 }
                 if (writeBoilerplateProps) {
@@ -76,8 +74,8 @@ open class BaseTest {
                 // this could be file-based or PKCS#11 HSM-based keystore props
                 props.append(keystoreProps)
 
-                // FIXME zap after testing done
-                println("props:\n${props.toString()}")
+                // uncomment if you need a little debugging
+                //println("props:\n${props.toString()}")
 
                 propsFl.appendText(props.toString())
             }

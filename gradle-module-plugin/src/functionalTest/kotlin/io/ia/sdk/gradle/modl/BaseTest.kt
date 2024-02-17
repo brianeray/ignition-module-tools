@@ -2,7 +2,6 @@ package io.ia.sdk.gradle.modl
 
 import io.ia.ignition.module.generator.api.GeneratorConfig
 import io.ia.ignition.module.generator.api.GeneratorConfigBuilder
-import io.ia.sdk.gradle.modl.api.Constants
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.junit.Rule
@@ -63,7 +62,7 @@ open class BaseTest {
                 // add a trailing EOL if necessary, then common props
                 if (
                     propsFl.exists() &&
-                        !propsFl.readText().matches(Regex("""\R$"""))
+                    !propsFl.readText().matches(Regex("""\R$"""))
                 ) {
                     props.append("\n")
                 }
@@ -75,7 +74,7 @@ open class BaseTest {
                 props.append(keystoreProps)
 
                 // uncomment if you need a little debugging
-                //println("props:\n${props.toString()}")
+                // println("props:\n${props.toString()}")
 
                 propsFl.appendText(props.toString())
             }
@@ -174,7 +173,7 @@ open class BaseTest {
     private fun setupRunner(
         projectDir: File,
         taskArgs: List<String>
-    ): GradleRunner = 
+    ): GradleRunner =
         GradleRunner.create()
             .forwardOutput()
             .withPluginClasspath()

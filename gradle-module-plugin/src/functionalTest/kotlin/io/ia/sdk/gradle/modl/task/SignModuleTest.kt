@@ -13,11 +13,11 @@ import org.gradle.testkit.runner.TaskOutcome
 import org.junit.Test
 import java.io.File
 import java.nio.file.Path
+import kotlin.test.Ignore
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
-//import kotlin.test.Ignore
 
 class SignModuleTest : BaseTest() {
     companion object {
@@ -79,8 +79,8 @@ class SignModuleTest : BaseTest() {
         )
 
         // If you want to dump file contents to stdout, uncomment this
-        //logZipMapFileText(SIG_PROPERTIES_FILENAME, sigPropsFile)
-        //logZipMapFileText(CERT_PKCS7_FILENAME, certFile)
+        // logZipMapFileText(SIG_PROPERTIES_FILENAME, sigPropsFile)
+        // logZipMapFileText(CERT_PKCS7_FILENAME, certFile)
     }
 
     @Test
@@ -130,8 +130,8 @@ class SignModuleTest : BaseTest() {
         )
 
         // If you want to dump file contents to stdout, uncomment this
-        //logZipMapFileText(SIG_PROPERTIES_FILENAME, sigPropsFile)
-        //logZipMapFileText(CERT_PKCS7_FILENAME, certFile)
+        // logZipMapFileText(SIG_PROPERTIES_FILENAME, sigPropsFile)
+        // logZipMapFileText(CERT_PKCS7_FILENAME, certFile)
     }
 
     @Test
@@ -281,7 +281,7 @@ class SignModuleTest : BaseTest() {
     }
 
     @Test
-    //@Tag("IGN-7871")
+    // @Tag("IGN-7871")
     fun `module failed - file keystore in gradle properties, pkcs11 keystore on cmdline`() {
         val dirName = currentMethodName()
         val workingDir: File = tempFolder.newFolder(dirName)
@@ -321,7 +321,7 @@ class SignModuleTest : BaseTest() {
     }
 
     @Test
-    //@Tag("IGN-7871")
+    // @Tag("IGN-7871")
     fun `module failed - file keystore on cmdline, pkcs11 keystore in gradle properties`() {
         val dirName = currentMethodName()
         val workingDir: File = tempFolder.newFolder(dirName)
@@ -361,7 +361,7 @@ class SignModuleTest : BaseTest() {
     }
 
     @Test
-    //@Tag("IGN-7871")
+    // @Tag("IGN-7871")
     fun `skip signing - no need for signing properties`() {
         val dirName = currentMethodName()
         val workingDir: File = tempFolder.newFolder(dirName)
@@ -386,7 +386,7 @@ class SignModuleTest : BaseTest() {
     }
 
     @Test
-    //@Tag("IGN-7871")
+    // @Tag("IGN-7871")
     fun `module failed - file and pkcs11 keystore on cmdline`() {
         val dirName = currentMethodName()
         val workingDir: File = tempFolder.newFolder(dirName)
@@ -432,9 +432,9 @@ class SignModuleTest : BaseTest() {
     // This is a test with an actual PKCS#11-compliant YubiKey 5, on Windows.
     // As such it is typically set to @Ignore.
     @Test
-    //@Ignore // FIXME uncomment annotation after testing
-    //@Tag("integration") // break out into a test suite at some point
-    //@Tag("IGN-7871")
+    @Ignore
+    // @Tag("integration") // break out into a test suite at some point
+    // @Tag("IGN-7871")
     fun `integration - module signed with physical pkcs11 HSM in gradle properties`() {
         val dirName = currentMethodName()
         val workingDir: File = tempFolder.newFolder(dirName)
@@ -485,16 +485,16 @@ class SignModuleTest : BaseTest() {
         )
 
         // If you want to dump file contents to stdout, uncomment this
-        //logZipMapFileText(SIG_PROPERTIES_FILENAME, sigPropsFile)
-        //logZipMapFileText(CERT_PKCS7_FILENAME, certFile)
+        // logZipMapFileText(SIG_PROPERTIES_FILENAME, sigPropsFile)
+        // logZipMapFileText(CERT_PKCS7_FILENAME, certFile)
     }
 
     // This is a test with an actual PKCS#11-compliant YubiKey 5, on Windows.
     // As such it is typically set to @Ignore.
     @Test
-    //@Ignore // FIXME uncomment annotation after testing
-    //@Tag("integration") // break out into a test suite at some point
-    //@Tag("IGN-7871")
+    @Ignore
+    // @Tag("integration") // break out into a test suite at some point
+    // @Tag("IGN-7871")
     fun `integration - module signed with physical pkcs11 HSM on cmdline`() {
         val dirName = currentMethodName()
         val workingDir: File = tempFolder.newFolder(dirName)
@@ -515,7 +515,7 @@ class SignModuleTest : BaseTest() {
             // hack around YK5 (signing) slot 9c's second PIN challenge on top
             // of initial keystore PIN challenge by using the cert in (auth)
             // slot 9a
-            //"--certAlias=X.509 Certificate for Digital Signature",
+            // "--certAlias=X.509 Certificate for Digital Signature",
             "--certAlias=X.509 Certificate for PIV Authentication",
             "--keystorePassword=123456",
             "--certFile=$certPath",
@@ -555,8 +555,8 @@ class SignModuleTest : BaseTest() {
         )
 
         // If you want to dump file contents to stdout, uncomment this
-        //logZipMapFileText(SIG_PROPERTIES_FILENAME, sigPropsFile)
-        //logZipMapFileText(CERT_PKCS7_FILENAME, certFile)
+        // logZipMapFileText(SIG_PROPERTIES_FILENAME, sigPropsFile)
+        // logZipMapFileText(CERT_PKCS7_FILENAME, certFile)
     }
 
     private fun generateModule(

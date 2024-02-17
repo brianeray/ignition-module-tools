@@ -104,8 +104,8 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
     @Option(
         option = PKCS11_CFG_FILE_FLAG,
         description =
-            "Path PKCS#11 HSM config file used for signing. " +
-                "Resolves in the same manner as gradle's project.file('<path>')"
+        "Path PKCS#11 HSM config file used for signing. " +
+            "Resolves in the same manner as gradle's project.file('<path>')"
     )
     fun setPKCS11Path(path: String) {
         pkcs11CfgPath.set(path)
@@ -346,7 +346,7 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
         certAlias: String,
         unsignedModule: File,
         outFile: File,
-    ): Unit {
+    ) {
         logger.debug(
             "Signing module with keystoreFile: ${keyStoreFile?.absolutePath}, " +
                 "pkcs11CfgFile: ${pkcs11CfgFile?.absolutePath}, " +
@@ -365,7 +365,7 @@ open class SignModule @Inject constructor(_providers: ProviderFactory, _objects:
             .signModule(PrintStream(OutputStream.nullOutputStream()), unsignedModule, outFile)
     }
 
-    private fun loadKeyStore(ks: KeyStore, ksPwd: String, ksFile: File?): Unit {
+    private fun loadKeyStore(ks: KeyStore, ksPwd: String, ksFile: File?) {
         // If PKCS#11 HSM (hardware key) keystore, forgo the input stream.
         val maybeStream: InputStream? =
             if (ks.type == PKCS11_KS_TYPE) null else ksFile?.inputStream()

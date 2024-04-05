@@ -38,13 +38,56 @@ ignitionModule {
     /*
      * Add your module dependencies here, following the examples, with scope being one or more of G, C or D,
      * for (G)ateway, (D)esigner, Vision (C)lient.
+     *
      * Example:
      * moduleDependencies = mapOf(
-     *    "CD" to "com.inductiveautomation.vision",
-     *    "G" to "com.inductiveautomation.opcua"
-     *  )
+     *    "com.inductiveautomation.vision" to "CD",
+     *    "com.inductiveautomation.opcua" to "G",
+     * )
+     *
+     * NOTE: For modules targeting Ignition 8.1 and earlier. Use
+     * `optionalModuleDependencies` and `requiredModuleDependencies` below for
+     * 8.3 and later.
      */
     moduleDependencies.set(mapOf<String, String>())
+
+    /*
+     * Add optional module dependencies here, following the examples, with
+     * scope being one or more of G, C or D, for (G)ateway, (D)esigner,
+     * Vision (C)lient.
+     *
+     * Example:
+     * optionalModuleDependencies = mapOf(
+     *    "com.inductiveautomation.vision" to "CD",
+     *    "com.inductiveautomation.opcua" to "G",
+     * )
+     *
+     * If a module's optional module dependencies are not present, the gateway
+     * will still load the module.
+     *
+     * NOTE: For modules targeting Ignition 8.3 and later. Use
+     * `moduleDependencies` for 8.1 and earlier.
+     */
+    optionalModuleDependencies.set(mapOf<String, String>())
+
+    /*
+     * Add required module dependencies here, following the examples, with
+     * scope being one or more of G, C or D, for (G)ateway, (D)esigner,
+     * Vision (C)lient.
+     *
+     * Example:
+     * requiredModuleDependencies = mapOf(
+     *    "com.inductiveautomation.requiredmod" to "CD",
+     *    "com.inductiveautomation.musthavemod" to "G",
+     * )
+     *
+     * If any of module's required module dependencies are not present, the
+     * gateway will fault on on loading the module.
+     *
+     * NOTE: For modules targeting Ignition 8.3 and later. Use
+     * `moduleDependencies` for 8.1 and earlier.
+     */
+    requiredModuleDependencies.set(mapOf<String, String>())
 
     /*
      * Map of fully qualified hook class to the shorthand scope.  Only one scope may apply to a class, and each scope

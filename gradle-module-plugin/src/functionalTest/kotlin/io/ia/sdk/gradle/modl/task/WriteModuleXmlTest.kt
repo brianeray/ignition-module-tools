@@ -7,6 +7,7 @@ import io.ia.ignition.module.generator.api.ProjectScope
 import io.ia.ignition.module.generator.util.replacePlaceholders
 import io.ia.sdk.gradle.modl.BaseTest
 import io.ia.sdk.gradle.modl.util.collapseXmlToOneLine
+import io.ia.sdk.gradle.modl.util.splitXmlNodesToList
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.TaskOutcome
 import java.io.File
@@ -125,7 +126,6 @@ class WriteModuleXmlTest : BaseTest() {
         val oneLineXml = generateXml(
             dirName,
             replacements,
-            // true,
         )
 
         assertContains(
@@ -166,7 +166,56 @@ class WriteModuleXmlTest : BaseTest() {
 
     @Test
     // @Tag ("IGN-10612")
-    fun `jars are included, de-duplicated, and sorted`() {
+    fun `jars are de-duplicated and sorted with --foldJars option`() {
+        val dirName = currentMethodName()
+        val dependencies = mapOf<String, String>(
+            // JLA-1.5 pulls in commons-math3-3.5 as transitive dep
+            "G" to "modlApi 'pl.edu.icm:JLargeArrays:1.5'",
+            "D" to "modlApi 'org.duckdb:duckdb_jdbc:0.9.2'",
+            // C[lient] implies D[esigner], so here C -> CD
+            "C" to "modlApi 'jline:jline:2.12'",
+            // Again, here CG -> CDG
+            "CG" to "modlApi 'javassist:javassist:3.12.1.GA'",
+            // Pulls in commons-pool-1.5.4 as transitive dep
+            "DG" to "modlApi 'commons-dbcp:commons-dbcp:1.4'",
+            "CD" to "modlApi 'args4j:args4j:2.0.8'",
+            // Translates to shorthand A[ll]
+            "CDG" to "modlApi 'com.inductiveautomation.ignition:ia-gson:2.10.1'",
+        )
+
+        val oneLineXml = generateXml(
+            dirName = dirName,
+            replacements = emptyMap(),
+            dependencies = dependencies,
+            foldJars = true,
+        )
+
+        // Split to list on the whitespace between nodes, extract <jar/>s.
+        val jars = splitXmlNodesToList(oneLineXml, listOf("jar"))
+
+        assertEquals(
+            listOf(
+                """<jar scope="CD">args4j-2.0.8.jar</jar>""",
+                """<jar scope="CD">client-0.0.1-SNAPSHOT.jar</jar>""",
+                """<jar scope="CD">jline-2.12.jar</jar>""",
+                """<jar scope="DG">commons-dbcp-1.4.jar</jar>""",
+                """<jar scope="DG">commons-pool-1.5.4.jar</jar>""",
+                """<jar scope="A">common-0.0.1-SNAPSHOT.jar</jar>""",
+                """<jar scope="A">ia-gson-2.10.1.jar</jar>""",
+                """<jar scope="A">javassist-3.12.1.GA.jar</jar>""",
+                """<jar scope="D">designer-0.0.1-SNAPSHOT.jar</jar>""",
+                """<jar scope="D">duckdb_jdbc-0.9.2.jar</jar>""",
+                """<jar scope="G">JLargeArrays-1.5.jar</jar>""",
+                """<jar scope="G">commons-math3-3.5.jar</jar>""",
+                """<jar scope="G">gateway-0.0.1-SNAPSHOT.jar</jar>""",
+            ),
+            jars,
+        )
+    }
+
+    @Test
+    // @Tag ("IGN-10612")
+    fun `jars are written largely as-is by default`() {
         val dirName = currentMethodName()
         val dependencies = mapOf<String, String>(
             // JLA-1.5 pulls in commons-math3-3.5 as transitive dep
@@ -182,30 +231,33 @@ class WriteModuleXmlTest : BaseTest() {
             "CDG" to "modlApi 'com.inductiveautomation.ignition:ia-gson:2.10.1'",
         )
 
-        val oneLineXml = generateXml(dirName, emptyMap(), dependencies)
+        val oneLineXml = generateXml(
+            dirName = dirName,
+            replacements = emptyMap(),
+            dependencies = dependencies,
+            // default is foldJars = false,
+        )
 
         // Split to list on the whitespace between nodes, extract <jar/>s.
-        val jars =
-            oneLineXml.split(Regex("""(?<=>)\s+(?=<)"""))
-                .filter { node -> node.startsWith("<jar") }
+        val jars = splitXmlNodesToList(oneLineXml, listOf("jar"))
 
         assertEquals(
-            jars,
             listOf(
-                """<jar scope="CDG">common-0.0.1-SNAPSHOT.jar</jar>""",
-                """<jar scope="CDG">ia-gson-2.10.1.jar</jar>""",
-                """<jar scope="CDG">javassist-3.12.1.GA.jar</jar>""",
                 """<jar scope="CD">args4j-2.0.8.jar</jar>""",
                 """<jar scope="CD">client-0.0.1-SNAPSHOT.jar</jar>""",
                 """<jar scope="CD">jline-2.12.jar</jar>""",
                 """<jar scope="DG">commons-dbcp-1.4.jar</jar>""",
                 """<jar scope="DG">commons-pool-1.5.4.jar</jar>""",
+                """<jar scope="A">common-0.0.1-SNAPSHOT.jar</jar>""",
+                """<jar scope="A">ia-gson-2.10.1.jar</jar>""",
+                """<jar scope="A">javassist-3.12.1.GA.jar</jar>""",
                 """<jar scope="D">designer-0.0.1-SNAPSHOT.jar</jar>""",
                 """<jar scope="D">duckdb_jdbc-0.9.2.jar</jar>""",
                 """<jar scope="G">JLargeArrays-1.5.jar</jar>""",
                 """<jar scope="G">commons-math3-3.5.jar</jar>""",
                 """<jar scope="G">gateway-0.0.1-SNAPSHOT.jar</jar>""",
-            )
+            ),
+            jars,
         )
     }
 
@@ -236,6 +288,7 @@ class WriteModuleXmlTest : BaseTest() {
         dirName: String,
         replacements: Map<String, String> = mapOf(),
         dependencies: Map<String, String> = mapOf(),
+        foldJars: Boolean = false,
         dumpBuildScript: Boolean = false,
     ): String {
         val projectDir = generateModule(
@@ -260,12 +313,17 @@ class WriteModuleXmlTest : BaseTest() {
             println(projectDir.resolve("build.gradle").readText())
         }
 
+        val args = mutableListOf(
+            "--stacktrace",
+            "writeModuleXml",
+        )
+        if (foldJars) {
+            args.add("--foldJars")
+        }
+
         val result: BuildResult = runTask(
             projectDir.toFile(),
-            listOf(
-                "writeModuleXml",
-                "--stacktrace",
-            )
+            args,
         )
 
         val task = result.task(":writeModuleXml")

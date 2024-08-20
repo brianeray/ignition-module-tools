@@ -49,8 +49,8 @@ class WriteModuleXmlTest : BaseTest() {
             """<depends scope="GCD" required="false">io.ia.modl</depends>"""
         )
         assertEquals(
+            1,
             Regex(DEPENDS).findAll(oneLineXml).toList().size,
-            1
         )
     }
 
@@ -87,8 +87,8 @@ class WriteModuleXmlTest : BaseTest() {
             """<depends scope="G" required="true">io.ia.otherModl</depends>"""
         )
         assertEquals(
+            2,
             Regex(DEPENDS).findAll(oneLineXml).toList().size,
-            2
         )
     }
 
@@ -137,8 +137,8 @@ class WriteModuleXmlTest : BaseTest() {
             """<depends scope="G" required="true">io.ia.otherModl</depends>"""
         )
         assertEquals(
+            2,
             Regex(DEPENDS).findAll(oneLineXml).toList().size,
-            2
         )
     }
 
@@ -159,8 +159,8 @@ class WriteModuleXmlTest : BaseTest() {
             """<depends scope="GCD">io.ia.modl</depends>"""
         )
         assertEquals(
+            1,
             Regex(DEPENDS).findAll(oneLineXml).toList().size,
-            1
         )
     }
 
@@ -327,7 +327,7 @@ class WriteModuleXmlTest : BaseTest() {
         )
 
         val task = result.task(":writeModuleXml")
-        assertEquals(task?.outcome, TaskOutcome.SUCCESS)
+        assertEquals(TaskOutcome.SUCCESS, task?.outcome)
 
         // We could do real XML parsing here but this is just a test,
         // quick-and-dirty should be fine.

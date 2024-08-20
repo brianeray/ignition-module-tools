@@ -198,13 +198,17 @@ class WriteModuleXmlTest : BaseTest() {
                 """<jar scope="CD">args4j-2.0.8.jar</jar>""",
                 """<jar scope="CD">client-0.0.1-SNAPSHOT.jar</jar>""",
                 """<jar scope="CD">jline-2.12.jar</jar>""",
+
                 """<jar scope="DG">commons-dbcp-1.4.jar</jar>""",
                 """<jar scope="DG">commons-pool-1.5.4.jar</jar>""",
+
                 """<jar scope="A">common-0.0.1-SNAPSHOT.jar</jar>""",
                 """<jar scope="A">ia-gson-2.10.1.jar</jar>""",
                 """<jar scope="A">javassist-3.12.1.GA.jar</jar>""",
+
                 """<jar scope="D">designer-0.0.1-SNAPSHOT.jar</jar>""",
                 """<jar scope="D">duckdb_jdbc-0.9.2.jar</jar>""",
+
                 """<jar scope="G">JLargeArrays-1.5.jar</jar>""",
                 """<jar scope="G">commons-math3-3.5.jar</jar>""",
                 """<jar scope="G">gateway-0.0.1-SNAPSHOT.jar</jar>""",
@@ -223,7 +227,7 @@ class WriteModuleXmlTest : BaseTest() {
             "D" to "modlApi 'org.duckdb:duckdb_jdbc:0.9.2'",
             // C[lient] implies D[esigner], so here C -> CD
             "C" to "modlApi 'jline:jline:2.12'",
-            // Again, here CG -> CDG
+            // Similarly, here CG -> CD and separately G
             "CG" to "modlApi 'javassist:javassist:3.12.1.GA'",
             // Pulls in commons-pool-1.5.4 as transitive dep
             "DG" to "modlApi 'commons-dbcp:commons-dbcp:1.4'",
@@ -243,17 +247,26 @@ class WriteModuleXmlTest : BaseTest() {
 
         assertEquals(
             listOf(
+                """<jar scope="CD">ia-gson-2.10.1.jar</jar>""",
                 """<jar scope="CD">args4j-2.0.8.jar</jar>""",
-                """<jar scope="CD">client-0.0.1-SNAPSHOT.jar</jar>""",
+                """<jar scope="CD">javassist-3.12.1.GA.jar</jar>""",
                 """<jar scope="CD">jline-2.12.jar</jar>""",
-                """<jar scope="DG">commons-dbcp-1.4.jar</jar>""",
-                """<jar scope="DG">commons-pool-1.5.4.jar</jar>""",
-                """<jar scope="A">common-0.0.1-SNAPSHOT.jar</jar>""",
-                """<jar scope="A">ia-gson-2.10.1.jar</jar>""",
-                """<jar scope="A">javassist-3.12.1.GA.jar</jar>""",
-                """<jar scope="D">designer-0.0.1-SNAPSHOT.jar</jar>""",
+                """<jar scope="CD">client-0.0.1-SNAPSHOT.jar</jar>""",
+
+                """<jar scope="CDG">common-0.0.1-SNAPSHOT.jar</jar>""",
+
+                """<jar scope="D">ia-gson-2.10.1.jar</jar>""",
+                """<jar scope="D">args4j-2.0.8.jar</jar>""",
+                """<jar scope="D">commons-dbcp-1.4.jar</jar>""",
                 """<jar scope="D">duckdb_jdbc-0.9.2.jar</jar>""",
+                """<jar scope="D">commons-pool-1.5.4.jar</jar>""",
+                """<jar scope="D">designer-0.0.1-SNAPSHOT.jar</jar>""",
+
+                """<jar scope="G">ia-gson-2.10.1.jar</jar>""",
+                """<jar scope="G">commons-dbcp-1.4.jar</jar>""",
+                """<jar scope="G">javassist-3.12.1.GA.jar</jar>""",
                 """<jar scope="G">JLargeArrays-1.5.jar</jar>""",
+                """<jar scope="G">commons-pool-1.5.4.jar</jar>""",
                 """<jar scope="G">commons-math3-3.5.jar</jar>""",
                 """<jar scope="G">gateway-0.0.1-SNAPSHOT.jar</jar>""",
             ),
@@ -314,7 +327,7 @@ class WriteModuleXmlTest : BaseTest() {
         }
 
         val args = mutableListOf(
-            "--stacktrace",
+            // "--stacktrace",
             "writeModuleXml",
         )
         if (foldJars) {

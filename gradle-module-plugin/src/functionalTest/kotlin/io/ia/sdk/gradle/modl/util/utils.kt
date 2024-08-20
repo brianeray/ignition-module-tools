@@ -27,5 +27,5 @@ fun splitXmlNodesToList(
         .filter { n ->
             // if no filter, include; else look for BOL with matching tag
             nodeFilter.isEmpty() ||
-                nodeFilter.any { nf -> n.startsWith("<${nf}") }
+                nodeFilter.any { nf -> n.startsWith("<$nf") }
         }

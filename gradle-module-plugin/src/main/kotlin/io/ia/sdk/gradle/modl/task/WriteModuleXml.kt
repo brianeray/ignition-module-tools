@@ -140,9 +140,6 @@ open class WriteModuleXml @Inject constructor(_objects: ObjectFactory) : Default
     }
 
     private fun buildXml(): String {
-        // FIXME zap after troubleshoot
-        println("foldJars=${foldJars.get()}")
-
         val modules = xml("modules", "UTF-8") {
             "module" {
                 "name" { -moduleName.get() }
@@ -243,7 +240,7 @@ open class WriteModuleXml @Inject constructor(_objects: ObjectFactory) : Default
             artifactManifestFromJson(manifest.asFile.readText(Charsets.UTF_8))
         }.let { manifests ->
             if (foldJars.get())
-                // more compact or else legacy dup-prone
+            // more compact or else legacy dup-prone
                 deduplicatedJars(manifests) else rawScopedJars(manifests)
         }
 
@@ -265,10 +262,10 @@ open class WriteModuleXml @Inject constructor(_objects: ObjectFactory) : Default
                             .flatMap { mani -> mani.scope.toList() }
                     )
                 }.joinToString("")
-                .let { scope ->
-                    // CDG > A formalized b/c we'll want it for IGN-10168
-                    IgnitionScope.promoteToAllWhenImplied(scope).code
-                }
+                    .let { scope ->
+                        // CDG > A formalized b/c we'll want it for IGN-10168
+                        IgnitionScope.promoteToAllWhenImplied(scope).code
+                    }
 
                 jar to combinedScope
             }.sortedWith(

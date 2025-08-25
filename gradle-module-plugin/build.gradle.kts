@@ -20,7 +20,8 @@ repositories {
 }
 
 group = "io.ia.sdk"
-version = "0.4.1"
+// FIXME IGN-10168 DO NOT MERGE just for local dev
+version = "0.5.0-SNAPSHOT"
 
 configurations {
     val functionalTestImplementation by registering {

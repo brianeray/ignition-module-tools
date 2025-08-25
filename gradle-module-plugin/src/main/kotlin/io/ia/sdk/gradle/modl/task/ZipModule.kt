@@ -64,7 +64,7 @@ open class ZipModule @Inject constructor(objects: ObjectFactory) : DefaultTask()
     fun checkDuplicateJars(contentDir: File) {
         project.logger.info("Parsing file name in: ${contentDir.absolutePath}")
 
-        val fileMap = mutableMapOf<String, String>()
+        val jars = mutableSetOf<String>()
         val regex = "^(.+?)-(\\d+.*)(?:\\.jar)".toRegex()
 
         contentDir.walk().filter { it.isFile }.forEach { file ->
@@ -72,19 +72,13 @@ open class ZipModule @Inject constructor(objects: ObjectFactory) : DefaultTask()
 
             if (matchResult != null) {
                 val name = matchResult.groupValues[1]
-                val version = matchResult.groupValues[2]
 
-                if (fileMap.containsKey(name)) {
-                    throw TaskExecutionException(
-                        this,
-                        IllegalArgumentException(
-                            """Jar with '$name' has multiple versions presented in ${contentDir.absolutePath}
-                            Please ensure only one version exist (preferably the highest) and update lib.version.toml file if needed.
-                            """.trimIndent()
-                        )
+                if (jars.contains(name)) {
+                    throw IllegalArgumentException(
+                        """Jar with '$name' has multiple versions presented in ${contentDir.absolutePath}
+                        Please ensure only one version exist (preferably the highest) and update lib.version.toml file if needed.
+                        """.trimIndent()
                     )
-                } else {
-                    fileMap[name] = version
                 }
             }
         }

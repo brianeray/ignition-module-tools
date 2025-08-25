@@ -7,6 +7,7 @@ import org.gradle.api.Project
 import org.gradle.api.internal.project.DefaultProject
 import org.gradle.api.tasks.TaskExecutionException
 import org.gradle.testfixtures.ProjectBuilder
+import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -39,7 +40,9 @@ class ZipModuleTests : BaseTest() {
         File(contentDir, "another-lib-2.0.jar").createNewFile()
 
         // Act & Assert: The task should not throw an exception
-        task.execute()
+        assertDoesNotThrow {
+            task.execute()
+        }
     }
 
     @Test
